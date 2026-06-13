@@ -1858,13 +1858,22 @@ class PDFParser{
 
   _capturePageFonts(pi,page,fontKeys=[]){
     if(!this._pageFontMap)this._pageFontMap=new Map();
+    if(!this._pageFontMeta)this._pageFontMeta=new Map();
     const fontMap=this._pageFontMap.get(pi)||{};
+    const fontMeta=this._pageFontMeta.get(pi)||{};
     for(const key of fontKeys){
       try{
         const font=page.commonObjs?.get?.(key);
         if(font){
           const names=[font.name,font.loadedName,font.fontName,font.fallbackName].filter(Boolean).join(' ');
           if(names)fontMap[key]=names;
+          const meta={
+            name:font.name||font.fontName||'',
+            loadedName:font.loadedName||key,
+            fallbackName:font.fallbackName||''
+          };
+          fontMeta[key]=meta;
+          if(meta.loadedName)fontMeta[meta.loadedName]=meta;
         }
       }catch{}
     }
@@ -1891,10 +1900,35 @@ class PDFParser{
       else if(font.fontName)fontMap[key]=font.fontName;
     }
     this._pageFontMap.set(pi,fontMap);
+    this._pageFontMeta.set(pi,fontMeta);
   }
 
   getPageFontName(pi,pdfFontKey){
     return this._pageFontMap?.get(pi)?.[pdfFontKey]||null;
+  }
+
+  getEmbeddedFontFamilyChain(pi,pdfFontKey){
+    const target=this._pageFontMeta?.get(pi)?.[pdfFontKey];
+    if(!target)return null;
+    const familyKey=String(target.name||'')
+      .replace(/^[A-Z0-9]{4,8}\+/i,'')
+      .replace(/\s+/g,'')
+      .toLowerCase();
+    if(!familyKey)return target.loadedName?`"${target.loadedName}",${_getSystemFontFallback(target.fallbackName)}`:null;
+    const loaded=[];
+    const add=name=>{if(name&&!loaded.includes(name))loaded.push(name);};
+    add(target.loadedName);
+    for(const metaMap of this._pageFontMeta.values()){
+      for(const meta of Object.values(metaMap)){
+        const key=String(meta?.name||'')
+          .replace(/^[A-Z0-9]{4,8}\+/i,'')
+          .replace(/\s+/g,'')
+          .toLowerCase();
+        if(key===familyKey)add(meta.loadedName);
+      }
+    }
+    if(!loaded.length)return null;
+    return `${loaded.map(name=>`"${name}"`).join(',')},${_getSystemFontFallback(target.name||target.fallbackName)}`;
   }
 
   async extractObjects(pi){
@@ -3981,6 +4015,35 @@ const app=(()=>{
   }
 
   // ── INIT ────────────────────────────────────────────────────────
+  function _applyEmbeddedFontChains(textObjs,pi,captureOriginal=false){
+    for(const obj of textObjs){
+      if(obj?.type!==OT.TEXT||!obj.data)continue;
+      const current=String(obj.data.fontFamily||'');
+      const chain=parser.getEmbeddedFontFamilyChain(pi,obj.data._pdfFontKey);
+      if(chain&&(captureOriginal||/\bg_[a-z0-9]+_f\d+\b/i.test(current))){
+        obj.data.fontFamily=chain;
+        if(captureOriginal&&obj.data._originalStyle)obj.data._originalStyle.fontFamily=chain;
+      }
+      if(!obj.data.html)continue;
+      const t=document.createElement('template');
+      t.innerHTML=obj.data.html;
+      let changed=false;
+      t.content.querySelectorAll('[style]').forEach(el=>{
+        const embedded=String(el.style.fontFamily||'').match(/\b(g_[a-z0-9]+_f\d+)\b/i)?.[1];
+        if(!embedded)return;
+        const spanChain=parser.getEmbeddedFontFamilyChain(pi,embedded);
+        if(spanChain&&el.style.fontFamily!==spanChain){
+          el.style.fontFamily=spanChain;
+          changed=true;
+        }
+      });
+      if(changed){
+        obj.data.html=t.innerHTML;
+        if(captureOriginal)obj.data._originalHtml=obj.data.html;
+      }
+    }
+  }
+
   function init(){
     _setupDrop();_setupSidebarTabs();_setupKeyboard();_setupDrawPanel();_setupTransientDismissal();_setupPageNavigation();
     window.addEventListener('resize',_fitCanvasToMobile);
@@ -4289,31 +4352,7 @@ const app=(()=>{
       
       // Patch text objects with real font names from PDF.js
       const textObjs=sg.getPageObjects(pi).filter(o=>o.type===OT.TEXT);
-      for(const obj of textObjs){
-        const pdfKey=obj.data._pdfFontKey;
-        if(!pdfKey)continue;
-        const realFont=parser.getPageFontName(pi,pdfKey);
-        if(realFont){
-          const cleanFont = _pdfInjectedFontFamily(realFont,obj.data._originalFontName,obj.data.fontFamily)||_getSystemFontFallback(obj.data._originalFontName || realFont);
-          obj.data.fontFamily=cleanFont;
-          if(obj.data._originalStyle)obj.data._originalStyle.fontFamily=cleanFont;
-          // Patch font-family inside stored HTML spans so the editor doesn't
-          // revert to the stale extraction-time family when the div is opened
-          if(obj.data.html){
-            const t=document.createElement('template');
-            t.innerHTML=obj.data.html;
-            t.content.querySelectorAll('[style]').forEach(el=>{
-              if(el.style.fontFamily) {
-                const spanPdfKey = el.style.fontFamily.replace(/['"]/g, '').trim();
-                const spanRealFont = parser.getPageFontName(pi, spanPdfKey) || spanPdfKey;
-                el.style.fontFamily = _pdfInjectedFontFamily(spanRealFont, spanPdfKey, cleanFont)||_getSystemFontFallback(spanRealFont, cleanFont);
-              }
-            });
-            obj.data.html=t.innerHTML;
-            obj.data._originalHtml=obj.data.html;
-          }
-        }
-      }
+      _applyEmbeddedFontChains(textObjs,pi);
       
       // Load additional fonts from Google Fonts (fire-and-forget)
       if(textObjs.length>0){
@@ -4538,6 +4577,7 @@ const app=(()=>{
     }
     try{
       const{textObjs,imageObjs,linkObjs}=await parser.extractObjects(pi);
+      _applyEmbeddedFontChains(textObjs,pi,true);
       textObjs.forEach(o=>sg.addObject(o,false));
       imageObjs.forEach(o=>sg.addObject(o,false));
       linkObjs.forEach(o=>sg.addObject(o,false));
@@ -4632,6 +4672,7 @@ const app=(()=>{
     for(let pi=startPage;pi<end;pi++){
       try{
         const{textObjs,imageObjs,linkObjs}=await parser.extractObjects(pi);
+        _applyEmbeddedFontChains(textObjs,pi,true);
         textObjs.forEach(o=>sg.addObject(o,false));
         imageObjs.forEach(o=>sg.addObject(o,false));
         linkObjs.forEach(o=>sg.addObject(o,false));
@@ -5741,11 +5782,12 @@ const app=(()=>{
       const baseFontSize=_drag.origFontSize||obj.data?.fontSize||12;
       const sx=nw/Math.max(1,origW),sy=nh/Math.max(1,origH);
       const isCorner=['tl','tr','bl','br'].includes(handle);
+      const changesHeight=handle.includes('t')||handle.includes('b');
       const scale=isCorner?Math.min(sx,sy):1;
       const fontSize=Math.max(4,_roundNum(baseFontSize*scale,2));
       const lines=_estimateWrappedLineCount(obj.data||{},obj.data?.content||'',nw,fontSize);
       const minH=Math.ceil(fontSize*(obj.data?.lineHeight||1.2)*lines+fontSize*.25);
-      if(nh<minH){
+      if(changesHeight&&nh<minH){
         if(handle.includes('t'))ny-=minH-nh;
         nh=minH;props.height=nh;props.y=ny;
       }
@@ -5917,14 +5959,6 @@ const app=(()=>{
     ta.className='text-editor-active';
     ta.contentEditable='true';
     ta.innerHTML=_editorHtmlForObj(obj);
-    // Ensure the resolved font (which may differ from extraction-time span styles)
-    // is applied to every child element so contentEditable doesn't revert
-    const _resolvedFont=obj.data.fontFamily;
-    if(_resolvedFont&&_resolvedFont!=='sans-serif'){
-      ta.querySelectorAll('[style]').forEach(el=>{
-        if(el.style.fontFamily)el.style.fontFamily=_resolvedFont;
-      });
-    }
     Object.defineProperty(ta,'value',{get(){return ta.innerText.replace(/\n$/,'');},set(v){ta.innerHTML=_plainToEditorHtml(v);}});
     ta.style.position    ='absolute';
     ta.style.left        =Math.round(obj.x*sf-editPad.x)+'px';
@@ -5961,13 +5995,26 @@ const app=(()=>{
       ta.style.transformOrigin='top left';
     }
 
+    const baseEditWidth=obj.width;
+    const baseEditHeight=obj.height;
     const resize=()=>{
       if(isSingleLine){
-        ta.style.height=Math.round(obj.height*sf+editPad.y*2)+'px';
-        ta.style.width=Math.round(obj.width*sf+editPad.x+editPad.right)+'px';
+        const minWidth=Math.round(baseEditWidth*sf+editPad.x+editPad.right);
+        const currentWidth=parseFloat(ta.style.width)||minWidth;
+        const nextWidth=ta.scrollWidth>ta.clientWidth+2
+          ?Math.max(currentWidth,Math.ceil(ta.scrollWidth+2))
+          :currentWidth;
+        if(nextWidth>currentWidth){
+          ta.style.width=nextWidth+'px';
+          obj.width=Math.max(baseEditWidth,(nextWidth-editPad.x-editPad.right)/sf);
+        }
+        ta.style.height=Math.round(baseEditHeight*sf+editPad.y*2)+'px';
+        obj.height=baseEditHeight;
       }else{
         ta.style.height='auto';
-        ta.style.height=Math.max(Math.round(obj.height*sf+editPad.y*2),ta.scrollHeight)+'px';
+        const nextHeight=Math.max(Math.round(baseEditHeight*sf+editPad.y*2),ta.scrollHeight);
+        ta.style.height=nextHeight+'px';
+        obj.height=Math.max(baseEditHeight,(nextHeight-editPad.y*2)/sf);
       }
     };
     const syncEditVisual=()=>{
@@ -5985,6 +6032,7 @@ const app=(()=>{
       obj.data.content=ta.value;
       obj.data.html=ta.innerHTML;
       syncEditVisual();
+      _redrawOverlay(pi,pw,sg.getPageObjects(pi));
     });
 
     ['pointerdown','mousedown','click','dblclick'].forEach(ev=>ta.addEventListener(ev,e=>e.stopPropagation()));

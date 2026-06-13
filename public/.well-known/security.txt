@@ -1,0 +1,10 @@
+# security.txt - Security vulnerability reporting policy for PDFOmni
+# https://securitytxt.org/
+
+Contact: mailto:security@pdfomni.pages.dev
+Contact: https://pdfomni.pages.dev/contact
+Expires: 2027-05-30T03:00:00.000Z
+Preferred-Languages: en
+Policy: https://pdfomni.pages.dev/security-policy
+Encryption: https://pdfomni.pages.dev/pgp-key.txt
+Acknowledgements: https://pdfomni.pages.dev/security-hall-of-fame

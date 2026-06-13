@@ -1,0 +1,84 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PDFOmni Client-Side Architecture Blueprint",
+    "description": "PDFOmni is a local-first browser-based PDF utility suite. All document actions are processed client-side via JavaScript and WebAssembly. No files are transmitted to a backend. This specification document defines the serverless status checks and architecture mapping.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://pdfomni.com",
+      "description": "Production Web App"
+    }
+  ],
+  "paths": {
+    "/robots.txt": {
+      "get": {
+        "summary": "Retrieve traditional search engine crawler rules",
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved robots.txt rules",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sitemap.xml": {
+      "get": {
+        "summary": "Retrieve the XML Sitemap",
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved sitemap.xml listing all tool routes",
+            "content": {
+              "application/xml": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/llms.txt": {
+      "get": {
+        "summary": "Retrieve plain-text markdown summaries for LLM reference",
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved llms.txt sheet",
+            "content": {
+              "text/markdown": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai.txt": {
+      "get": {
+        "summary": "Retrieve AI permissions manifest",
+        "responses": {
+          "200": {
+            "description": "Successfully retrieved ai.txt file mapping data scraping rules",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

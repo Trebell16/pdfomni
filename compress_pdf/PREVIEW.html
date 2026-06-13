@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>PDFCrush — Preview</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.1);
+    --indigo: #6366f1;
+    --indigo-light: #818cf8;
+    --purple: #a855f7;
+    --text: #ffffff;
+    --text-muted: rgba(255,255,255,0.5);
+    --text-dim: rgba(255,255,255,0.3);
+    --emerald: #10b981;
+    --yellow: #eab308;
+    --red: #ef4444;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { background: #1e2130; }
+  ::-webkit-scrollbar-thumb { background: var(--indigo); border-radius: 3px; }
+
+  /* ── Nav ── */
+  .nav {
+    position: sticky; top: 0; z-index: 50;
+    background: rgba(15,17,23,0.85);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    height: 56px;
+    display: flex; align-items: center;
+  }
+  .nav-inner {
+    max-width: 960px; width: 100%;
+    margin: 0 auto; padding: 0 24px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .logo {
+    display: flex; align-items: center; gap: 8px;
+  }
+  .logo-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: linear-gradient(135deg,#6366f1,#a855f7);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; box-shadow: 0 4px 16px rgba(99,102,241,0.4);
+  }
+  .logo-text { font-size: 14px; font-weight: 700; }
+  .logo-text span { background: linear-gradient(90deg,#818cf8,#c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-link {
+    padding: 6px 12px; border-radius: 8px; font-size: 12px;
+    color: var(--text-muted); text-decoration: none;
+    transition: all 0.15s;
+  }
+  .nav-link:hover { background: rgba(255,255,255,0.08); color: var(--text); }
+
+  /* ── Hero ── */
+  .hero {
+    text-align: center; padding: 56px 24px 32px;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px; border-radius: 999px;
+    background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2);
+    font-size: 11px; color: #818cf8; margin-bottom: 20px;
+  }
+  h1 {
+    font-size: clamp(28px, 5vw, 44px); font-weight: 900;
+    line-height: 1.15; margin-bottom: 12px;
+  }
+  h1 span {
+    background: linear-gradient(90deg,#818cf8,#c084fc);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .subtitle { font-size: 15px; color: var(--text-muted); max-width: 480px; margin: 0 auto; }
+
+  /* ── Main ── */
+  main {
+    flex: 1; max-width: 960px; width: 100%;
+    margin: 0 auto; padding: 0 24px 64px;
+  }
+
+  /* ── Privacy Banner ── */
+  .privacy-banner {
+    display: flex; align-items: center; justify-content: center;
+    gap: 8px; padding: 10px 16px; border-radius: 12px;
+    background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2);
+    font-size: 12px; color: #6ee7b7; margin-bottom: 24px;
+  }
+  .privacy-banner strong { color: #34d399; }
+
+  /* ── Card ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px;
+  }
+  .section-label {
+    font-size: 11px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--text-dim); margin-bottom: 12px;
+  }
+
+  /* ── Upload Zone ── */
+  .upload-zone {
+    border: 2px dashed rgba(255,255,255,0.2); border-radius: 16px;
+    min-height: 280px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 20px;
+    cursor: pointer; transition: all 0.2s; padding: 40px;
+    text-align: center;
+  }
+  .upload-zone:hover {
+    border-color: rgba(99,102,241,0.6);
+    background: rgba(99,102,241,0.05);
+  }
+  .upload-icon {
+    width: 80px; height: 80px; border-radius: 20px;
+    background: rgba(99,102,241,0.15);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+  }
+  .upload-title { font-size: 20px; font-weight: 700; }
+  .upload-subtitle { font-size: 13px; color: var(--text-muted); }
+  .upload-subtitle a { color: var(--indigo-light); }
+  .upload-hints { display: flex; gap: 16px; font-size: 11px; color: var(--text-dim); }
+
+  /* ── Grid ── */
+  .two-col {
+    display: grid; gap: 20px;
+    grid-template-columns: 1fr;
+  }
+  @media (min-width: 768px) {
+    .two-col { grid-template-columns: 1fr 380px; }
+  }
+
+  /* ── File Info ── */
+  .file-card {
+    display: flex; align-items: center; gap: 16px;
+    padding: 14px 16px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  .file-icon {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: rgba(99,102,241,0.2);
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+    flex-shrink: 0;
+  }
+  .file-name { font-size: 13px; font-weight: 600; }
+  .file-meta { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+  .file-close {
+    margin-left: auto; background: none; border: none;
+    color: var(--text-dim); cursor: pointer; padding: 6px; border-radius: 8px;
+    font-size: 16px; line-height: 1; transition: all 0.15s;
+  }
+  .file-close:hover { color: var(--text); background: rgba(255,255,255,0.1); }
+
+  /* ── Analysis Stats ── */
+  .stats-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  @media (min-width: 480px) { .stats-grid { grid-template-columns: repeat(4,1fr); } }
+  .stat-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 12px;
+    background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+  }
+  .stat-icon {
+    width: 34px; height: 34px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .stat-label { font-size: 11px; color: var(--text-dim); }
+  .stat-value { font-size: 13px; font-weight: 700; }
+
+  /* ── Compress Button ── */
+  .compress-btn {
+    width: 100%; padding: 16px; border-radius: 16px;
+    border: none; cursor: pointer; font-size: 15px; font-weight: 700;
+    color: white; display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: linear-gradient(90deg,#4f46e5,#7c3aed);
+    box-shadow: 0 8px 32px rgba(99,102,241,0.3);
+    transition: all 0.15s; margin-top: 16px;
+  }
+  .compress-btn:hover { background: linear-gradient(90deg,#4338ca,#6d28d9); transform: translateY(-1px); }
+  .compress-btn:active { transform: scale(0.98); }
+
+  /* ── Steps ── */
+  .steps { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; margin-top: 12px; }
+  .step {
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    padding: 12px 8px; border-radius: 12px;
+    background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.07);
+    text-align: center; font-size: 11px; color: var(--text-dim);
+  }
+  .step-num {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: rgba(99,102,241,0.2); color: #818cf8;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 700;
+  }
+
+  /* ── Slider Panel ── */
+  .slider-header {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px;
+  }
+  .quality-badge {
+    font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 999px;
+    background: rgba(234,179,8,0.1); border: 1px solid rgba(234,179,8,0.3); color: #fbbf24;
+  }
+  .pct-display { text-align: center; padding: 8px 0; margin-bottom: 20px; }
+  .pct-num {
+    font-size: 52px; font-weight: 900; line-height: 1;
+    display: inline-block;
+  }
+  .pct-unit { font-size: 24px; color: var(--text-muted); margin-left: 4px; }
+  .pct-target { font-size: 18px; font-weight: 700; color: #818cf8; margin-top: 6px; }
+  .pct-orig { font-size: 12px; color: var(--text-dim); margin-top: 4px; }
+
+  /* Range */
+  input[type=range] {
+    -webkit-appearance: none; appearance: none;
+    width: 100%; height: 6px; border-radius: 4px; outline: none; cursor: pointer;
+    background: linear-gradient(to right, #6366f1 47%, rgba(255,255,255,0.12) 47%);
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 22px; height: 22px; border-radius: 50%;
+    background: #6366f1; border: 3px solid #fff;
+    box-shadow: 0 0 0 2px #6366f1, 0 2px 8px rgba(99,102,241,0.4);
+    cursor: pointer;
+  }
+  .range-labels { display: flex; justify-content: space-between; margin-top: 8px; font-size: 11px; color: var(--text-dim); }
+
+  /* Quality impact */
+  .quality-box {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px; border-radius: 12px; margin-top: 20px;
+    background: rgba(234,179,8,0.06); border: 1px solid rgba(234,179,8,0.2);
+  }
+  .quality-dots { display: flex; gap: 4px; align-items: center; margin-top: 2px; flex-shrink: 0; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .dot.active { background: #fbbf24; }
+  .dot.inactive { background: rgba(255,255,255,0.15); }
+  .quality-label { font-size: 12px; font-weight: 600; color: #fbbf24; }
+  .quality-desc { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+  /* Size bar */
+  .size-bar-wrap { margin-top: 20px; }
+  .size-bar-header { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
+  .size-bar-track { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; }
+  .size-bar-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg,#6366f1,#a855f7);
+    width: 50%;
+    transition: width 0.3s;
+  }
+  .size-bar-labels { display: flex; justify-content: space-between; font-size: 11px; margin-top: 6px; }
+
+  /* ── Progress Panel ── */
+  .progress-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+  .progress-pct { font-size: 14px; font-weight: 700; color: #818cf8; }
+  .progress-track { height: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; overflow: hidden; margin-bottom: 16px; }
+  .progress-fill {
+    height: 100%; border-radius: 6px;
+    background: linear-gradient(90deg,#4f46e5,#818cf8,#6366f1);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s linear infinite;
+    width: 72%;
+    transition: width 0.5s;
+  }
+  @keyframes shimmer {
+    0%   { background-position: -200% 0; }
+    100% { background-position:  200% 0; }
+  }
+  .progress-msg { display: flex; align-items: center; gap: 8px; font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 16px; }
+  .spinner {
+    width: 16px; height: 16px; border: 2px solid rgba(99,102,241,0.3);
+    border-top-color: #818cf8; border-radius: 50%;
+    animation: spin 1s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .stage-list { display: flex; flex-direction: column; gap: 6px; }
+  .stage-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 12px; border-radius: 10px;
+  }
+  .stage-item.done   { opacity: 0.55; }
+  .stage-item.active { background: rgba(99,102,241,0.12); border: 1px solid rgba(99,102,241,0.3); }
+  .stage-item.pending { opacity: 0.25; }
+  .stage-dot {
+    width: 20px; height: 20px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; flex-shrink: 0;
+  }
+  .stage-dot.done   { background: rgba(16,185,129,0.25); color: #34d399; }
+  .stage-dot.active { background: rgba(99,102,241,0.25); color: #818cf8; }
+  .stage-dot.pending { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.3); }
+  .stage-text { font-size: 13px; }
+  .stage-text.active { color: white; font-weight: 600; }
+  .stage-text.done, .stage-text.pending { color: rgba(255,255,255,0.6); }
+
+  /* ── Results Panel ── */
+  .success-banner {
+    display: flex; align-items: flex-start; gap: 12px;
+    padding: 14px 16px; border-radius: 12px;
+    background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3);
+    margin-bottom: 20px;
+  }
+  .success-icon { font-size: 22px; flex-shrink: 0; }
+  .success-title { font-size: 13px; font-weight: 600; color: #34d399; }
+  .success-sub { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+  .metrics-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; margin-bottom: 20px; }
+  @media (min-width: 480px) { .metrics-grid { grid-template-columns: repeat(4,1fr); } }
+  .metric {
+    padding: 14px; border-radius: 12px;
+    background: var(--surface); border: 1px solid var(--border);
+  }
+  .metric.highlight { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); }
+  .metric-label { font-size: 11px; color: var(--text-dim); margin-bottom: 6px; }
+  .metric-value { font-size: 18px; font-weight: 800; }
+  .metric.highlight .metric-value { color: #818cf8; }
+  .metric-sub { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+
+  .ratio-wrap { margin-bottom: 20px; }
+  .ratio-header { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-bottom: 8px; }
+  .ratio-track { position: relative; height: 16px; background: rgba(255,255,255,0.08); border-radius: 8px; overflow: hidden; }
+  .ratio-target { position: absolute; top: 0; bottom: 0; width: 2px; background: #fbbf24; z-index: 2; left: 50%; }
+  .ratio-fill { height: 100%; border-radius: 8px; background: linear-gradient(90deg,#10b981,#34d399); width: 49.8%; }
+  .ratio-labels { display: flex; justify-content: space-between; font-size: 11px; margin-top: 6px; }
+
+  .pass-list { margin-bottom: 20px; }
+  .pass-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; font-size: 12px; }
+  .pass-label { color: var(--text-dim); width: 60px; flex-shrink: 0; }
+  .pass-track { flex: 1; height: 6px; background: rgba(255,255,255,0.08); border-radius: 3px; overflow: hidden; }
+  .pass-fill { height: 100%; border-radius: 3px; background: rgba(99,102,241,0.7); }
+  .pass-size { color: rgba(255,255,255,0.6); width: 72px; text-align: right; flex-shrink: 0; }
+
+  .actions { display: flex; flex-direction: column; gap: 10px; }
+  @media (min-width: 480px) { .actions { flex-direction: row; } }
+  .btn-primary {
+    flex: 1; display: flex; align-items: center; justify-content: center; gap: 10px;
+    padding: 14px 20px; border-radius: 14px; border: none; cursor: pointer;
+    font-size: 14px; font-weight: 700; color: white;
+    background: linear-gradient(90deg,#4f46e5,#7c3aed);
+    box-shadow: 0 4px 24px rgba(99,102,241,0.35);
+    transition: all 0.15s;
+  }
+  .btn-primary:hover { background: linear-gradient(90deg,#4338ca,#6d28d9); }
+  .btn-secondary {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    padding: 14px 18px; border-radius: 14px; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    transition: all 0.15s;
+  }
+  .btn-secondary:hover { background: rgba(255,255,255,0.12); color: white; }
+
+  /* ── Tabs ── */
+  .demo-tabs { display: flex; gap: 4px; margin-bottom: 24px; }
+  .tab {
+    padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer;
+    font-size: 12px; font-weight: 600; transition: all 0.15s;
+    color: var(--text-muted); background: none;
+  }
+  .tab.active { background: rgba(99,102,241,0.15); color: #818cf8; border: 1px solid rgba(99,102,241,0.3); }
+  .tab:not(.active):hover { background: rgba(255,255,255,0.06); color: var(--text); }
+
+  .tab-panel { display: none; animation: fadeIn 0.25s ease; }
+  .tab-panel.visible { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+  /* ── Footer ── */
+  footer {
+    border-top: 1px solid var(--border); padding: 20px 24px;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--text-dim);
+  }
+  .footer-logo { display: flex; align-items: center; gap: 6px; }
+</style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<header class="nav">
+  <div class="nav-inner">
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">PDF<span>Crush</span></div>
+    </div>
+    <nav class="nav-links">
+      <a href="#" class="nav-link">⎇ GitHub</a>
+      <a href="#" class="nav-link">🌐 Docs</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ── HERO (shown on idle tab) ── -->
+<div id="hero" class="hero">
+  <div class="badge">⚡ Client-side · Zero uploads · Instant</div>
+  <h1>Compress PDFs <span>in your browser</span></h1>
+  <p class="subtitle">Set your target file size, compress, and download — entirely on your device. No servers, no uploads, no privacy risk.</p>
+</div>
+
+<!-- ── MAIN ── -->
+<main>
+
+  <!-- Privacy Banner -->
+  <div class="privacy-banner">
+    🛡️ <span><strong>100% Private:</strong> All PDF processing occurs locally in your browser. Your files are <strong>never uploaded</strong> to any server.</span>
+  </div>
+
+  <!-- Demo tabs -->
+  <div class="demo-tabs">
+    <button class="tab active" onclick="showTab('upload')">📂 Upload</button>
+    <button class="tab" onclick="showTab('loaded')">⚙️ Configure</button>
+    <button class="tab" onclick="showTab('progress')">⏳ Progress</button>
+    <button class="tab" onclick="showTab('results')">✅ Results</button>
+  </div>
+
+  <!-- ══ TAB: UPLOAD ══ -->
+  <div id="tab-upload" class="tab-panel visible">
+    <div class="upload-zone" onclick="showTab('loaded')">
+      <div class="upload-icon">📄</div>
+      <div>
+        <div class="upload-title">Drop your PDF here</div>
+        <div class="upload-subtitle">or <a href="#">browse files</a></div>
+      </div>
+      <div class="upload-hints">
+        <span>PDF only</span><span>·</span><span>Up to 500 MB</span><span>·</span><span>100% private</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: LOADED ══ -->
+  <div id="tab-loaded" class="tab-panel">
+
+    <!-- File info -->
+    <div class="file-card">
+      <div class="file-icon">📄</div>
+      <div>
+        <div class="file-name">annual_report_2025.pdf</div>
+        <div class="file-meta">100.00 MB &nbsp;·&nbsp; 42 pages &nbsp;·&nbsp; 87 images</div>
+      </div>
+      <button class="file-close" onclick="showTab('upload')">✕</button>
+    </div>
+
+    <div class="two-col">
+      <!-- Left column -->
+      <div>
+        <!-- Analysis panel -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="section-label">PDF Analysis</div>
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-icon" style="background:rgba(99,102,241,0.15)">📑</div>
+              <div><div class="stat-label">Pages</div><div class="stat-value">42</div></div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon" style="background:rgba(168,85,247,0.15)">🖼️</div>
+              <div><div class="stat-label">Images</div><div class="stat-value">87</div></div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon" style="background:rgba(14,165,233,0.15)">💾</div>
+              <div><div class="stat-label">Current Size</div><div class="stat-value">100 MB</div></div>
+            </div>
+            <div class="stat-item">
+              <div class="stat-icon" style="background:rgba(236,72,153,0.15)">🎯</div>
+              <div><div class="stat-label">Target Size</div><div class="stat-value">50 MB</div></div>
+            </div>
+          </div>
+        </div>
+
+        <button class="compress-btn" onclick="showTab('progress')">⚡ Compress PDF</button>
+
+        <div class="steps">
+          <div class="step"><div class="step-num">1</div><span>Analyse structure</span></div>
+          <div class="step"><div class="step-num">2</div><span>Multi-pass compression</span></div>
+          <div class="step"><div class="step-num">3</div><span>Download result</span></div>
+        </div>
+      </div>
+
+      <!-- Right column: slider -->
+      <div class="card">
+        <div class="slider-header">
+          <div class="section-label" style="margin-bottom:0">Target Output Size</div>
+          <div class="quality-badge">Medium compression</div>
+        </div>
+
+        <div class="pct-display">
+          <div><span class="pct-num" id="pctNum">50</span><span class="pct-unit">%</span></div>
+          <div class="pct-target" id="pctTarget">50.00 MB</div>
+          <div class="pct-orig">of original 100.00 MB</div>
+        </div>
+
+        <input type="range" min="15" max="90" value="50" id="slider" oninput="updateSlider(this.value)" />
+        <div class="range-labels">
+          <span>15% — Maximum compression</span>
+          <span>90% — Minimal compression</span>
+        </div>
+
+        <div class="quality-box" id="qualityBox">
+          <div>
+            <div class="quality-dots" id="qualityDots">
+              <div class="dot active"></div>
+              <div class="dot active"></div>
+              <div class="dot active"></div>
+              <div class="dot inactive"></div>
+              <div class="dot inactive"></div>
+            </div>
+          </div>
+          <div>
+            <div class="quality-label" id="qualityLabel">Quality Impact: Medium</div>
+            <div class="quality-desc" id="qualityDesc">Noticeable compression on high-resolution images.</div>
+          </div>
+        </div>
+
+        <div class="size-bar-wrap">
+          <div class="size-bar-header">
+            <span>Estimated size reduction</span>
+            <span id="reductionPct">50% reduction</span>
+          </div>
+          <div class="size-bar-track">
+            <div class="size-bar-fill" id="sizeBarFill" style="width:50%"></div>
+          </div>
+          <div class="size-bar-labels">
+            <span style="color:var(--text-dim)">0 B</span>
+            <span style="color:#818cf8;font-weight:600" id="sizeBarTarget">50.00 MB</span>
+            <span style="color:var(--text-dim)">100.00 MB</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TAB: PROGRESS ══ -->
+  <div id="tab-progress" class="tab-panel">
+
+    <div class="file-card">
+      <div class="file-icon">📄</div>
+      <div>
+        <div class="file-name">annual_report_2025.pdf</div>
+        <div class="file-meta">100.00 MB &nbsp;·&nbsp; 42 pages &nbsp;·&nbsp; 87 images</div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="card">
+        <div class="progress-header">
+          <div class="section-label" style="margin-bottom:0">Compression Progress</div>
+          <div class="progress-pct" id="progPct">72%</div>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progFill" style="width:72%"></div>
+        </div>
+        <div class="progress-msg">
+          <div class="spinner"></div>
+          <span id="progMsg">Pass 3: Compressing images (quality=44%, maxDim=900px)…</span>
+        </div>
+        <div class="stage-list">
+          <div class="stage-item done">
+            <div class="stage-dot done">✓</div>
+            <div class="stage-text done">Analysing PDF…</div>
+          </div>
+          <div class="stage-item done">
+            <div class="stage-dot done">✓</div>
+            <div class="stage-text done">Stripping metadata…</div>
+          </div>
+          <div class="stage-item done">
+            <div class="stage-dot done">✓</div>
+            <div class="stage-text done">Measuring baseline…</div>
+          </div>
+          <div class="stage-item active">
+            <div class="stage-dot active">●</div>
+            <div class="stage-text active">Compressing images…</div>
+          </div>
+          <div class="stage-item pending">
+            <div class="stage-dot pending">○</div>
+            <div class="stage-text pending">Saving compressed PDF…</div>
+          </div>
+          <div class="stage-item pending">
+            <div class="stage-dot pending">○</div>
+            <div class="stage-text pending">Optimising object streams…</div>
+          </div>
+          <div class="stage-item pending">
+            <div class="stage-dot pending">○</div>
+            <div class="stage-text pending">Finalising…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="opacity:0.4;pointer-events:none;">
+        <div class="slider-header">
+          <div class="section-label" style="margin-bottom:0">Target Output Size</div>
+          <div class="quality-badge">Medium compression</div>
+        </div>
+        <div class="pct-display">
+          <div><span class="pct-num">50</span><span class="pct-unit">%</span></div>
+          <div class="pct-target">50.00 MB</div>
+          <div class="pct-orig">of original 100.00 MB</div>
+        </div>
+        <input type="range" min="15" max="90" value="50" disabled style="opacity:0.5;" />
+      </div>
+    </div>
+
+    <div style="margin-top:16px;text-align:center;">
+      <button onclick="simulateProgress()" style="background:none;border:1px solid var(--border);color:var(--text-muted);padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px;">
+        ▶ Simulate compression progress
+      </button>
+      &nbsp;
+      <button onclick="showTab('results')" style="background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.3);color:#818cf8;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:12px;">
+        ⏭ Skip to results →
+      </button>
+    </div>
+  </div>
+
+  <!-- ══ TAB: RESULTS ══ -->
+  <div id="tab-results" class="tab-panel">
+
+    <div class="file-card">
+      <div class="file-icon">📄</div>
+      <div>
+        <div class="file-name">annual_report_2025.pdf</div>
+        <div class="file-meta">100.00 MB &nbsp;·&nbsp; 42 pages &nbsp;·&nbsp; 87 images</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="success-banner">
+        <div class="success-icon">✅</div>
+        <div>
+          <div class="success-title">Compression Complete!</div>
+          <div class="success-sub">Target size reached. Difference: 204 KB from target.</div>
+        </div>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric">
+          <div class="metric-label">📄 Original Size</div>
+          <div class="metric-value">100 MB</div>
+        </div>
+        <div class="metric highlight">
+          <div class="metric-label">📦 Compressed Size</div>
+          <div class="metric-value">49.80 MB</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">🎯 Target Size</div>
+          <div class="metric-value">50.00 MB</div>
+          <div class="metric-sub">✓ Reached</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">📉 Size Reduction</div>
+          <div class="metric-value">50.2%</div>
+          <div class="metric-sub">saved 50.20 MB</div>
+        </div>
+      </div>
+
+      <div class="ratio-wrap">
+        <div class="ratio-header">
+          <span>Compression ratio</span>
+          <span>49.80 MB / 100.00 MB</span>
+        </div>
+        <div class="ratio-track">
+          <div class="ratio-target" title="Target size (50%)"></div>
+          <div class="ratio-fill"></div>
+        </div>
+        <div class="ratio-labels">
+          <span style="color:var(--text-dim)">0</span>
+          <span style="color:#fbbf24;font-size:11px;">▲ Target 50%</span>
+          <span style="color:var(--text-dim)">100 MB</span>
+        </div>
+      </div>
+
+      <div class="pass-list">
+        <div class="section-label">Compression Passes</div>
+        <div class="pass-row"><span class="pass-label">Baseline</span><div class="pass-track"><div class="pass-fill" style="width:92%"></div></div><span class="pass-size">92.10 MB</span></div>
+        <div class="pass-row"><span class="pass-label">Pass 1</span><div class="pass-track"><div class="pass-fill" style="width:70%"></div></div><span class="pass-size">70.00 MB</span></div>
+        <div class="pass-row"><span class="pass-label">Pass 2</span><div class="pass-track"><div class="pass-fill" style="width:58%"></div></div><span class="pass-size">58.00 MB</span></div>
+        <div class="pass-row"><span class="pass-label">Pass 3</span><div class="pass-track"><div class="pass-fill" style="width:51%"></div></div><span class="pass-size">51.20 MB</span></div>
+        <div class="pass-row"><span class="pass-label">Pass 4</span><div class="pass-track"><div class="pass-fill" style="width:49.8%"></div></div><span class="pass-size">49.80 MB</span></div>
+        <div class="pass-row"><span class="pass-label">Obj. streams</span><div class="pass-track"><div class="pass-fill" style="width:49.8%"></div></div><span class="pass-size">49.80 MB</span></div>
+      </div>
+
+      <div class="actions">
+        <button class="btn-primary">⬇ Download Compressed PDF</button>
+        <button class="btn-secondary" onclick="showTab('upload')">↺ Compress Another</button>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-logo">⚡ <span>PDFCrush — 100% client-side PDF compression</span></div>
+  <span>No server. No uploads. No cookies.</span>
+</footer>
+
+<script>
+  // Tab switching
+  function showTab(name) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('visible'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('visible');
+    document.getElementById('hero').style.display = name === 'upload' ? 'block' : 'none';
+    // Activate correct tab button
+    const labels = ['upload','loaded','progress','results'];
+    const idx = labels.indexOf(name);
+    if (idx >= 0) document.querySelectorAll('.tab')[idx].classList.add('active');
+  }
+
+  // Slider update
+  function updateSlider(val) {
+    val = parseInt(val);
+    const size = (val).toFixed(2);
+    document.getElementById('pctNum').textContent = val;
+    document.getElementById('pctTarget').textContent = size + ' MB';
+    document.getElementById('reductionPct').textContent = (100 - val) + '% reduction';
+    document.getElementById('sizeBarFill').style.width = val + '%';
+    document.getElementById('sizeBarTarget').textContent = size + ' MB';
+
+    // Update slider fill
+    const fillPct = ((val - 15) / (90 - 15)) * 100;
+    document.getElementById('slider').style.background =
+      `linear-gradient(to right, #6366f1 ${fillPct}%, rgba(255,255,255,0.12) ${fillPct}%)`;
+
+    // Quality impact
+    let impact, desc, dotCount, color;
+    if      (val >= 80) { impact='Minimal';      desc='Near-lossless. Barely perceptible.';              dotCount=1; color='#34d399'; }
+    else if (val >= 60) { impact='Low';           desc='Slight reduction in sharpness.';                  dotCount=2; color='#4ade80'; }
+    else if (val >= 40) { impact='Medium';        desc='Noticeable compression on high-res images.';      dotCount=3; color='#fbbf24'; }
+    else if (val >= 25) { impact='High';          desc='Visible quality reduction; OK for screen.';       dotCount=4; color='#fb923c'; }
+    else                { impact='Maximum Safe';  desc='Significant compression; images reduced.';        dotCount=5; color='#f87171'; }
+
+    document.getElementById('qualityLabel').textContent = 'Quality Impact: ' + impact;
+    document.getElementById('qualityLabel').style.color = color;
+    document.getElementById('qualityDesc').textContent  = desc;
+    document.getElementById('qualityBox').style.background = `rgba(${color === '#34d399' ? '16,185,129' : color === '#4ade80' ? '74,222,128' : color === '#fbbf24' ? '234,179,8' : color === '#fb923c' ? '251,146,60' : '248,113,113'},0.06)`;
+    document.getElementById('qualityBox').style.borderColor = color + '33';
+
+    const dots = document.querySelectorAll('.quality-dots .dot');
+    dots.forEach((d, i) => {
+      d.classList.toggle('active',   i < dotCount);
+      d.classList.toggle('inactive', i >= dotCount);
+      if (i < dotCount) d.style.background = color;
+    });
+    document.querySelector('.quality-badge').textContent = impact + ' compression';
+    document.querySelector('.quality-badge').style.color = color;
+  }
+
+  // Progress simulation
+  let simTimer = null;
+  function simulateProgress() {
+    if (simTimer) { clearInterval(simTimer); simTimer = null; }
+    let pct = 5;
+    simTimer = setInterval(() => {
+      pct = Math.min(pct + Math.random() * 4, 100);
+      document.getElementById('progPct').textContent = Math.round(pct) + '%';
+      document.getElementById('progFill').style.width = pct + '%';
+      if (pct >= 100) {
+        clearInterval(simTimer); simTimer = null;
+        setTimeout(() => showTab('results'), 600);
+      }
+    }, 200);
+  }
+
+  // Init
+  showTab('upload');
+</script>
+</body>
+</html>

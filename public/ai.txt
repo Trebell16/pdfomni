@@ -1,0 +1,38 @@
+# ai.txt - AI Permissions Manifest for PDFOmni
+# Owner: PDFOmni (https://pdfomni.com)
+# Purpose: Define data usage permissions for AI models, agents, and scrapers.
+# Specs: https://ai-txt.org/ / https://github.com/ai-txt/ai.txt
+
+# 1. Training Permissions
+# PDFOmni permits AI/ML systems to crawl, read, summarize, and learn from public pages on this website.
+Target: AI-Training
+Permission: Allowed
+
+# 2. Search & Summarization Permissions
+# AI agents and search engines are permitted to index and summarize PDFOmni pages for search engine results and citation purposes.
+Target: AI-Search-Indexing
+Permission: Allowed
+
+# 3. Scraping & Crawling Rules
+User-agent: GPTBot
+Allow: /
+User-agent: ChatGPT-User
+Allow: /
+User-agent: Google-Extended
+Allow: /
+User-agent: Claude-Web
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: CCBot
+Allow: /
+User-agent: Anthropic-AI
+Allow: /
+User-agent: Omgilibot
+Allow: /
+User-agent: FacebookBot
+Allow: /
+User-agent: CoPilot
+Allow: /
+User-agent: *
+Allow: /

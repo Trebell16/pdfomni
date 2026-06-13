@@ -1,0 +1,172 @@
+@import "tailwindcss";
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f1f5f9; }
+::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Range slider custom styles */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 4px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #7c3aed;
+  cursor: pointer;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 2px #7c3aed, 0 2px 8px rgba(124, 58, 237, 0.3);
+  transition: box-shadow 0.15s ease;
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 0 4px rgba(124, 58, 237, 0.2), 0 2px 12px rgba(124, 58, 237, 0.4);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #7c3aed;
+  cursor: pointer;
+  border: 3px solid #ffffff;
+  box-shadow: 0 0 0 2px #7c3aed;
+}
+
+/* Progress bar animation */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.progress-shimmer {
+  background: linear-gradient(
+    90deg,
+    #7c3aed 0%,
+    #a78bfa 40%,
+    #8b5cf6 60%,
+    #7c3aed 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s linear infinite;
+}
+
+/* Drag-over glow */
+.drag-active {
+  box-shadow: 0 0 0 3px #8b5cf6, 0 0 40px rgba(139, 92, 246, 0.15);
+}
+
+/* Fade-in animation */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-up {
+  animation: fadeInUp 0.35s ease forwards;
+}
+
+/* Pulse ring for uploading spinner */
+@keyframes spin-slow {
+  to { transform: rotate(360deg); }
+}
+.spin-slow { animation: spin-slow 1.4s linear infinite; }
+
+/* Subtle indigo grid background */
+.grid-bg {
+  background-color: #fafbfe;
+  background-image: 
+    linear-gradient(to right, rgba(99, 102, 241, 0.035) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(99, 102, 241, 0.035) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body,
+html[data-theme="dark"] #root {
+  background:
+    radial-gradient(ellipse at 15% -10%, rgba(34, 211, 238, 0.14) 0%, transparent 34%),
+    radial-gradient(ellipse at 92% 8%, rgba(217, 70, 239, 0.11) 0%, transparent 34%),
+    #050817;
+  color: #f8fafc;
+}
+
+html[data-theme="dark"] .grid-bg {
+  background-color: #050817;
+  background-image:
+    linear-gradient(to right, rgba(148, 163, 184, 0.055) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 163, 184, 0.055) 1px, transparent 1px);
+}
+
+html[data-theme="dark"] .bg-white,
+html[data-theme="dark"] .bg-slate-50,
+html[data-theme="dark"] .bg-slate-50\/50,
+html[data-theme="dark"] .bg-slate-100,
+html[data-theme="dark"] .bg-violet-50,
+html[data-theme="dark"] .bg-emerald-50,
+html[data-theme="dark"] .bg-red-50 {
+  background-color: rgba(15, 23, 42, 0.72) !important;
+}
+
+html[data-theme="dark"] .border-slate-100,
+html[data-theme="dark"] .border-slate-100\/50,
+html[data-theme="dark"] .border-slate-200,
+html[data-theme="dark"] .border-violet-100,
+html[data-theme="dark"] .border-emerald-100,
+html[data-theme="dark"] .border-red-100 {
+  border-color: rgba(148, 163, 184, 0.18) !important;
+}
+
+html[data-theme="dark"] .text-slate-800,
+html[data-theme="dark"] .text-slate-900,
+html[data-theme="dark"] .text-slate-950 {
+  color: #f8fafc !important;
+}
+
+html[data-theme="dark"] .text-slate-700,
+html[data-theme="dark"] .text-slate-600,
+html[data-theme="dark"] .text-slate-500 {
+  color: #cbd5e1 !important;
+}
+
+html[data-theme="dark"] .text-slate-400 {
+  color: #94a3b8 !important;
+}
+
+html[data-theme="dark"] .text-emerald-800,
+html[data-theme="dark"] .text-emerald-600 {
+  color: #86efac !important;
+}
+
+html[data-theme="dark"] .text-violet-600,
+html[data-theme="dark"] .text-violet-700 {
+  color: #a5b4fc !important;
+}
+
+html[data-theme="dark"] .shadow-sm,
+html[data-theme="dark"] .shadow-md {
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255,255,255,0.035) !important;
+}
+
+html[data-theme="dark"] input[type="range"] {
+  background-color: rgba(30, 41, 59, 0.95);
+}
+
+html[data-theme="dark"] input[type="range"]::-webkit-slider-thumb {
+  border-color: #0f172a;
+  box-shadow: 0 0 0 2px #818cf8, 0 0 18px rgba(34, 211, 238, 0.22);
+}

@@ -1,0 +1,349 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import tools, { toolCategories } from '../src/config/tools.js'
+import { getToolSeo } from '../src/config/toolSeo.js'
+
+const outDir = process.argv[2] || 'dist'
+const rootDir = process.cwd()
+const outputRoot = path.resolve(rootDir, outDir)
+const templatePath = path.join(outputRoot, 'index.html')
+const SITE_URL = 'https://pdfomni.com'
+
+if (!fs.existsSync(templatePath)) {
+  throw new Error(`Cannot prerender routes because ${templatePath} does not exist.`)
+}
+
+const template = fs.readFileSync(templatePath, 'utf8')
+
+function esc(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
+function sentenceList(items, limit = 10) {
+  const list = items.slice(0, limit)
+  if (list.length <= 1) return list[0] || ''
+  return `${list.slice(0, -1).join(', ')}, and ${list.at(-1)}`
+}
+
+function seoFallbackHtml({ description, canonicalPath, h1, intro, sections = [], faq = [], verificationHtml = '' }) {
+  const shouldRenderDescription = description && !String(description).trim().startsWith(String(intro).trim())
+  return `
+    <main class="prerendered-seo" data-prerendered-route="${esc(canonicalPath)}">
+      <section>
+        <p class="tool-seo-kicker">Private PDF tool</p>
+        <h1>${esc(h1)}</h1>
+        <p>${esc(intro)}</p>
+        ${shouldRenderDescription ? `<p>${esc(description)}</p>` : ''}
+        ${sections.map((section) => `
+          <h2>${esc(section.title)}</h2>
+          ${section.paragraphs.map((paragraph) => `<p>${esc(paragraph)}</p>`).join('')}
+          ${section.links?.length ? `
+            <ul>
+              ${section.links.map((link) => `
+                <li>
+                  <a href="${esc(link.href)}">${esc(link.label)}</a>
+                  ${link.description ? `<span> - ${esc(link.description)}</span>` : ''}
+                </li>
+              `).join('')}
+            </ul>
+          ` : ''}
+        `).join('')}
+        ${faq.length ? `
+          <h2>Frequently Asked Questions</h2>
+          ${faq.map((item) => `<h3>${esc(item.question)}</h3><p>${esc(item.answer)}</p>`).join('')}
+        ` : ''}
+        ${verificationHtml}
+      </section>
+    </main>
+  `
+}
+
+function structuredData({ title, description, canonicalPath, faq = [] }) {
+  const graph = [
+    {
+      '@type': 'WebPage',
+      name: title,
+      description,
+      url: `${SITE_URL}${canonicalPath}`,
+    },
+  ]
+  if (faq.length) {
+    graph.push({
+      '@type': 'FAQPage',
+      mainEntity: faq.map((item) => ({
+        '@type': 'Question',
+        name: item.question,
+        acceptedAnswer: { '@type': 'Answer', text: item.answer },
+      })),
+    })
+  }
+  return { '@context': 'https://schema.org', '@graph': graph }
+}
+
+function injectPage({ canonicalPath, title, description, bodyHtml, schema, robots = 'index,follow,max-image-preview:large,max-snippet:-1,max-video-preview:-1', writeRootHtml = false }) {
+  const canonicalUrl = `${SITE_URL}${canonicalPath}`
+  let html = template
+    .replace(/<title>.*?<\/title>/s, `<title>${esc(title)}</title>`)
+    .replace(/<meta name="description" content="[^"]*"\s*\/?>/s, `<meta name="description" content="${esc(description)}">`)
+
+  const headExtras = `
+    <link rel="canonical" href="${esc(canonicalUrl)}">
+    <meta name="robots" content="${esc(robots)}">
+    <meta property="og:title" content="${esc(title)}">
+    <meta property="og:description" content="${esc(description)}">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="${esc(canonicalUrl)}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="${esc(title)}">
+    <meta name="twitter:description" content="${esc(description)}">
+    <script type="application/ld+json" data-seo-ld="true">${JSON.stringify(schema)}</script>
+  `
+  html = html.replace('</head>', `${headExtras}\n</head>`)
+  html = html.replace('<div id="root"></div>', `${bodyHtml}<div id="root"></div>`)
+
+  const cleanRoute = canonicalPath === '/' ? '' : canonicalPath.replace(/^\/+|\/+$/g, '')
+  const routeDir = path.join(outputRoot, cleanRoute)
+  fs.mkdirSync(routeDir, { recursive: true })
+  const routeIndexPath = path.join(routeDir, 'index.html')
+  fs.writeFileSync(routeIndexPath, html)
+  if (cleanRoute || writeRootHtml) {
+    const cleanName = canonicalPath.replace(/^\/+|\/+$/g, '')
+    if (cleanName) {
+      fs.writeFileSync(path.join(outputRoot, `${cleanName}.html`), html)
+    }
+  }
+}
+
+function toolPage(tool) {
+  const seo = getToolSeo(tool.id, tool)
+  const mainTerm = tool.name
+  const faq = tool.id === 'edit' ? [] : seo.faqs
+  const description = `${seo.intro} PDFOmni processes files locally in your browser with a clear 500 MB per-file limit.`
+  const sections = [
+    {
+      title: `${mainTerm} in a private browser workflow`,
+      paragraphs: [
+        `Use this page when you need to finish a ${mainTerm.toLowerCase()} task quickly without sending the source document through an upload-first service. The upload area stays easy to reach, and the guidance below explains when the tool is useful before you choose a file.`,
+        `PDFOmni keeps document work local wherever the browser can do the processing. Instead of sending the file to a server before anything happens, the PDF is handled inside the tab and the finished output is downloaded from your device.`,
+        `The 500 MB per-file limit is intentionally clear. It gives users room for large documents while still respecting browser memory limits, device performance, and the fact that local PDF work depends on the machine in front of you.`,
+        `The workflow is useful on phones, laptops, school devices, and office computers because it keeps the main action simple. You can upload the file, complete the PDF task, and then move into another PDFOmni tool if the document needs an extra step.`,
+        `If a PDF contains scans, photographs, unusual fonts, forms, or many pages, any browser-based tool can take longer than a tiny text-only document. PDFOmni makes that tradeoff visible: privacy and local processing are the priority, with performance depending on the device instead of a remote server farm.`,
+        `Common uses include ${sentenceList(seo.useCases, 3).toLowerCase()}. After the output is ready, related PDFOmni tools can help with compression, page organization, signing, redaction, conversion, or review depending on what the document needs next.`,
+      ],
+    },
+    {
+      title: `Why use PDFOmni over iLovePDF for ${mainTerm}?`,
+      paragraphs: [
+        `iLovePDF is a popular online PDF toolkit, but its official pricing page describes free use as limited document processing, while Premium includes unlimited processing and an ad-free experience. PDFOmni takes a different approach by focusing on local processing, privacy, and free browser tools.`,
+        `That difference matters when the file is private, large, or used repeatedly. PDFOmni is best for users who want a free ${mainTerm} workflow without uploading sensitive content first. iLovePDF can still be useful when a cloud workflow is acceptable, but PDFOmni is designed for privacy-focused local document work.`,
+        `The comparison is not about pretending every tool has the same infrastructure. Cloud PDF services can be convenient, especially for people who already use accounts or team features. PDFOmni is built for the opposite preference: finish the file locally, avoid unnecessary uploads, keep the interface simple, and use other PDFOmni tools only when the document needs an additional step such as compression, signing, redaction, page numbering, unlocking, or conversion.`,
+        `Before sharing any exported file, open it and check the result. PDFs are complex containers, and responsible document work means reviewing the output, especially when privacy, accessibility, layout, signatures, redaction, or official submission requirements matter.`,
+      ],
+    },
+  ]
+  return {
+    canonicalPath: tool.canonicalPath || `/tool/${tool.id}`,
+    title: `${seo.h1} | PDFOmni`,
+    description,
+    h1: seo.h1,
+    intro: seo.intro,
+    sections,
+    faq,
+  }
+}
+
+function homePageSections() {
+  const visibleTools = tools.filter((tool) => tool.canonicalPath && !tool.hiddenOnHome)
+  const categoryDescriptions = {
+    organize: 'Use these tools when a PDF needs basic cleanup before you send it, print it, or archive it. Merge related documents into one file, split out only the pages you need, reorder messy packets, compress large attachments, rotate sideways scans, or add page numbers for reports and submissions.',
+    'convert-to': 'Turn everyday files into PDFs when you need a format that is easier to share and review. Word documents, spreadsheets, image files, and HTML pages can become cleaner PDF outputs for school work, client documents, invoices, forms, portfolios, and web content.',
+    'convert-from': 'Pull useful content out of a PDF when the document needs to move into another workflow. Export pages as images for previews and thumbnails, or extract text from a PDF so it can be copied into notes, research drafts, email replies, or document archives.',
+    edit: 'Edit and annotate tools are for documents that need visible changes before they are shared. Modify PDF text, add watermarks, redact sensitive details, crop unwanted margins, draw attention to important areas, or adjust embedded images without starting the document again from scratch.',
+    security: 'Security tools help with private documents such as invoices, bank statements, contracts, school records, and signed forms. You can protect a PDF with a password, unlock files you are allowed to open, or add a signature before sending the document to someone else.',
+    advanced: 'Advanced tools are useful when a one-off PDF action is not enough. Batch processing helps repeat the same document steps across multiple files, while the WCAG checker helps review accessibility issues before a PDF is published, submitted, or shared with a wider audience.',
+  }
+  const categorySections = toolCategories.map((category) => {
+    const categoryTools = visibleTools.filter((tool) => tool.category === category.id)
+    const toolNames = categoryTools.map((tool) => tool.name)
+    return {
+      title: `${category.label} tools`,
+      paragraphs: [
+        categoryDescriptions[category.id],
+        `In this category you can use ${sentenceList(toolNames, 8)}. Each link opens a dedicated page with the actual browser tool, a simple upload flow, and more detail about the specific PDF task.`,
+      ],
+      links: categoryTools.map((tool) => ({
+        href: tool.canonicalPath,
+        label: tool.name,
+        description: tool.description,
+      })),
+    }
+  })
+
+  return [
+    {
+      title: 'Private PDF tools for real document work',
+      paragraphs: [
+        'PDFOmni is built for people who need practical PDF tools without sending every file through an upload-first server workflow. The app covers common document jobs such as merging, splitting, compressing, converting, editing, signing, protecting, unlocking, redacting, and checking PDFs for accessibility.',
+        'The homepage is organized around real document tasks, so you can search by tool name, browse by category, and open the exact workflow you need without digging through unrelated options.',
+        'Core PDF processing is designed to happen locally in the browser wherever the selected workflow supports it. That matters for private files such as school documents, invoices, resumes, reports, contracts, scanned forms, and internal business PDFs.',
+      ],
+    },
+    ...categorySections,
+    {
+      title: 'Why PDFOmni focuses on local processing',
+      paragraphs: [
+        'Many PDF websites work by uploading the file first, processing it on a remote server, and then sending the result back. PDFOmni takes a local-first approach so supported tools can create the output inside the browser tab. That makes the experience useful for people who care about privacy, speed on large files, and not waiting for a server queue.',
+        'PDFOmni sets a clear 500 MB per-file limit for supported PDF tools. Browser performance still depends on the device, file complexity, image resolution, fonts, forms, and page count, but the limit gives users a straightforward boundary before they choose a file.',
+        'The site is free to use and does not add artificial rate limits to local browser actions. When a document needs multiple steps, users can move from one PDFOmni tool to another, or use the workflow builder for repeatable document tasks.',
+      ],
+    },
+  ]
+}
+
+const routePages = [
+  {
+    canonicalPath: '/',
+    title: 'PDFOmni | 100% Private PDF Tools',
+    description: 'Merge, split, compress, convert, edit, sign, and protect PDFs locally in your browser with private client-side PDF tools.',
+    h1: 'Every PDF tool you need, completely private',
+    intro: 'PDFOmni is a local-first PDF toolkit for everyday document work. Files stay on your device while the browser handles merge, split, compress, convert, edit, sign, protect, unlock, and accessibility workflows.',
+    sections: homePageSections(),
+    faq: [],
+    verificationHtml: `
+      <p>
+        <a href="https://www.foundrlist.com/product/pdfomni?utm_source=badge&amp;utm_medium=embed" rel="noopener">
+          <img src="https://www.foundrlist.com/api/badge/pdfomni" alt="Featured on FoundrList" width="150" height="48">
+        </a>
+      </p>
+    `,
+  },
+  ...tools.filter((tool) => tool.canonicalPath && !tool.hiddenOnHome).map(toolPage),
+  {
+    canonicalPath: '/workflow',
+    title: 'Build Private PDF Workflows Locally | PDFOmni',
+    description: 'Create client-side PDF workflows for merge, split, rotate, watermark, page numbering, and batch document automation directly in your browser.',
+    h1: 'Build Private PDF Workflows Locally in Your Browser',
+    intro: 'PDFOmni workflow builder lets you chain PDF actions into a repeatable pipeline without sending documents to a server.',
+    sections: [
+      {
+        title: 'Local PDF automation for repeated document work',
+        paragraphs: [
+          'The PDFOmni workflow page is made for people who need a PDF batch processor without turning every task into a manual, one-file-at-a-time chore. You can connect nodes for input, process steps, filters, and output so common jobs become a repeatable local pipeline. That is useful for office documents, school packets, client reports, scanned forms, and internal files where the same merge, split, rotate, watermark, page numbering, or conversion steps happen again and again.',
+          'Searchers often look for a Batch PDF converter, Batch PDF merger, combine PDFs in bulk, Bulk PDF compressor, reduce PDF size batch, bulk PDF to JPG, Extract pages from PDF in bulk, Add watermark to multiple PDFs at once, How to batch process PDF files, How to convert multiple PDFs at once, or Best batch PDF tools for Windows and Mac. PDFOmni describes those workflows directly, but the important difference is that supported processing is designed to happen in your browser instead of a remote upload queue.',
+          'Local workflow automation changes the privacy model. With a typical cloud service, every source document must be uploaded before the server can do the job. In PDFOmni, the browser opens the files, performs supported operations locally, and prepares the output on your device. That makes the workflow page a better fit for private PDFs, internal drafts, invoices, forms, resumes, academic packets, and files that should not be sent to an unknown processing server unless there is a clear reason.',
+          'The 500 MB per-file limit gives the app a simple, honest boundary. Browser-based PDF processing still depends on device memory, document complexity, image resolution, and the number of pages being previewed. PDFOmni keeps previews lazy where possible so long documents do not need every page rendered at once. If a workflow touches many pages, the visible area and nearby pages get priority, which keeps mobile and desktop layouts more responsive.',
+        ],
+      },
+      {
+        title: 'PDFOmni workflow builder vs iLovePDF',
+        paragraphs: [
+          'iLovePDF is a widely used online PDF service, and it can be convenient when uploading files to a cloud workflow is acceptable. Its official pricing describes free use as limited document processing, while Premium includes unlimited processing and an ad-free experience. PDFOmni is positioned differently: it emphasizes local processing, free browser workflows, privacy, and a clear 500 MB per-file limit for supported tools.',
+          'That does not mean every browser task is magically faster than a server. A powerful cloud service can be helpful for team accounts, server-side storage, or tasks that require infrastructure outside the browser. PDFOmni is strongest when the user wants control: chain the common PDF actions, avoid unnecessary uploads, keep files on the device, and review the exported result before sharing it.',
+          'Use the workflow builder when a document process has more than one step. For example, you might merge PDFs, rotate a few pages, add page numbers, apply a watermark, and export the final packet. You might split a large document into sections and then compress the files for email. You might convert pages to images for review or run accessibility checks before sending a public document. The goal is a practical private workflow, not a landing page that hides the actual tool.',
+          'For mobile users, the same SEO content remains below the working interface so the page can be indexed without pushing the workflow controls out of reach. The top of the page is for doing the job; the bottom explains how the tool works, who it is for, and why local PDF automation can be a better fit than upload-first PDF websites for sensitive or repeated document tasks.',
+        ],
+      },
+      {
+        title: 'Workflow FAQ',
+        paragraphs: [
+          'Can I batch process PDF files for free? PDFOmni is built around free local PDF workflows, with supported operations running in the browser and a 500 MB per-file limit. Very large or unusually complex PDFs may still depend on your device performance.',
+          'Is a browser workflow private? Supported PDFOmni operations are designed to process documents locally in the browser. Normal website resources such as scripts, ads, and public assets can still load from the web, but the core document work does not require a PDFOmni processing server.',
+          'When should I use a workflow instead of a single tool page? Use a workflow when the same files need multiple steps or when you repeat the same document process often. Use a single tool page when you only need one action such as merge PDF, split PDF, compress PDF, rotate PDF, or sign PDF.',
+        ],
+      },
+    ],
+    faq: [],
+  },
+  {
+    canonicalPath: '/privacy',
+    title: 'Privacy Policy | PDFOmni',
+    description: 'Read how PDFOmni approaches privacy, local browser processing, document handling, ads, analytics, and user-controlled PDF workflows.',
+    h1: 'PDFOmni Privacy Policy',
+    intro: 'PDFOmni is built around local-first PDF tools. This privacy page explains the difference between browser-side document processing and normal website requests such as loading the app, ads, or public assets.',
+    sections: [
+      { title: 'Local document handling', paragraphs: ['Core PDF tool operations are designed to run in the browser wherever possible. That means the files you choose for merge, split, edit, redact, sign, and similar workflows are handled on your device rather than uploaded to a PDFOmni processing server.', 'Some website features may still contact third-party services for ads, fonts, or normal web delivery, so users should review the page and browser controls before working with sensitive files.'] },
+    ],
+    faq: [],
+  },
+  {
+    canonicalPath: '/terms',
+    title: 'Terms of Service | PDFOmni',
+    description: 'Read the PDFOmni terms for using private browser-based PDF tools, local processing, export workflows, and supported document tasks.',
+    h1: 'PDFOmni Terms of Service',
+    intro: 'These terms describe the basic rules for using PDFOmni tools, including responsibility for uploaded local files, exported documents, and review of final PDF output.',
+    sections: [
+      { title: 'Use of PDF tools', paragraphs: ['PDFOmni provides browser-based PDF utilities for document preparation. Users are responsible for making sure they have the right to process each file and for reviewing output before sharing, publishing, or relying on it.', 'PDF documents can contain complex fonts, images, forms, annotations, and permissions. Always inspect exported files when accuracy matters.'] },
+    ],
+    faq: [],
+  },
+  {
+    canonicalPath: '/contact',
+    title: 'Contact | PDFOmni',
+    description: 'Contact PDFOmni about private PDF tools, browser-based document workflows, bugs, feature requests, and support questions.',
+    h1: 'Contact PDFOmni',
+    intro: 'Use the contact page to prepare a support email about PDFOmni tools, PDF workflows, bugs, feature requests, or document handling questions.',
+    sections: [
+      { title: 'Support information', paragraphs: ['When reporting an issue, include the tool name, browser, device, file size, and the steps that led to the problem. Avoid sending private documents unless you have removed sensitive information first.', 'For layout, export, or mobile issues, screenshots are helpful because PDF behavior can vary across file types and browsers.'] },
+    ],
+    faq: [],
+  },
+  {
+    canonicalPath: '/about',
+    title: 'About Us | PDFOmni',
+    description: 'Learn about PDFOmni, a student-built private PDF toolkit focused on local browser processing, free tools, and practical document workflows.',
+    h1: 'About Us',
+    intro: 'PDFOmni is a student-built PDF toolkit for people who want useful document tools without handing every file to a server.',
+    sections: [
+      {
+        title: 'Student-built local PDF tools',
+        paragraphs: [
+          'PDFOmni started as a college project from a student who kept running into the same PDF problem: simple tools were often locked behind accounts, upload limits, or cloud processing flows that felt wrong for private documents.',
+          'The project focuses on privacy-focused PDF tools, a clear 500 MB file size limit, totally free access, and no artificial rate limits on local browser actions.',
+          'PDFOmni is maintained independently and improves around real user feedback, especially document export issues, mobile usability, editor behavior, accessibility checks, and browser-based PDF workflows.',
+        ],
+      },
+    ],
+    faq: [],
+  },
+  {
+    canonicalPath: '/404',
+    title: 'Page Not Found | PDFOmni',
+    description: 'The PDFOmni page you are looking for could not be found.',
+    h1: 'Page Not Found',
+    intro: 'That page does not exist, may have moved, or was typed incorrectly.',
+    sections: [
+      { title: 'Error 404', paragraphs: ['Return to the PDFOmni home page to choose from the full list of private PDF tools.'] },
+    ],
+    faq: [],
+    robots: 'noindex,follow',
+    writeRootHtml: true,
+  },
+  {
+    canonicalPath: '/500',
+    title: 'Server Error | PDFOmni',
+    description: 'PDFOmni hit an unexpected error while loading this page.',
+    h1: 'Something Went Wrong',
+    intro: 'The page could not be loaded correctly.',
+    sections: [
+      { title: 'Error 500', paragraphs: ['Try refreshing the page or return to the home page. If the same tool keeps failing, use the contact page with the tool name, browser, file size, and steps that caused the problem.'] },
+    ],
+    faq: [],
+    robots: 'noindex,follow',
+    writeRootHtml: true,
+  },
+]
+
+for (const page of routePages) {
+  injectPage({
+    ...page,
+    bodyHtml: seoFallbackHtml(page),
+    schema: structuredData(page),
+  })
+}
+
+console.log(`Prerendered ${routePages.length} route HTML file(s) into ${outDir}.`)

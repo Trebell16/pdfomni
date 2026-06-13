@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      (function () {
+        function apply(theme) {
+          document.documentElement.dataset.theme = theme || 'light';
+        }
+        try {
+          apply(localStorage.getItem('pdfomni_theme') || 'light');
+        } catch (_) {
+          apply('light');
+        }
+        window.addEventListener('message', function (event) {
+          if (event.origin !== window.location.origin || !event.data || event.data.type !== 'pdfomni-theme') return;
+          apply(event.data.theme);
+        });
+      })();
+    </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5532127864022306"
+      crossorigin="anonymous"></script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-TSWLYFYBM8"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-TSWLYFYBM8');
+    </script>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Compress PDF Files Locally - Reduce Size Without Uploading | PDFOmni</title>
+    <meta name="description" content="Compress PDF files locally in your browser with PDFOmni. Reduce PDF file size for free with a private 500 MB per-file limit and no server upload." />
+    <meta name="robots" content="noindex,follow" />
+    <meta name="keywords" content="compress pdf, compress pdf free, how to compress pdf files, compress pdf online free, compress pdf file size, free compress pdf, compress pdf size, compress pdf files" />
+    <link rel="canonical" href="https://pdfomni.com/compress" />
+
+    <meta property="og:title" content="Compress PDF Files Locally | PDFOmni" />
+    <meta property="og:description" content="Set your target size and compress PDFs entirely in your browser safely and privately." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://pdfomni.com/compress" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Compress PDF Files Locally | PDFOmni" />
+    <meta name="twitter:description" content="Compress PDFs to your exact target size in-browser and private." />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

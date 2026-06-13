@@ -1,0 +1,77 @@
+OK so do that. And also, i was thinking of improving the seo on each page. We'll make it atleast 600 words and i'll give you the main keyword for each page along with supporting keywords that should be there. Also i checked and i think we can use the name ilovepdf as a comparision on our site and not use anything copyrightable such that its fine. So i was thinking of having a section or a table or something to show why use this tool over ilovepdf for each tool. Here are some bad points i found about ilovepdf which you can use for table based checklist comparision:
+iLovePDF Web Limits (Free vs. Premium)Standard PDF Tools (Merge, Compress, Split): 400 MB max per file.PDF Forms & Crop Tools: 15 MB to 100 MB for Free users.Premium Subscriptions: Unlock higher batch-processing limits, completely ad-free workflows, and larger file capacity across services.
+
+Also, to ensure we arent lying, set a limit of 500 MB upload for each pdf tool. But to make sure this works, you'll need to check all tools where we actually show the multiple pdf pages(not just one at a time like crop tool) and all of them are being loaded into the memory and make it so that it loads 5 pages at max which are near the active page. So 2 above and 2 below or 3 above and 1 below and vice versa, you get the point. And if the view point moves from these pages to others, we remove the previously loaded pages from memory unless some pages are still within the 5 page range from the active page, so those'll stay. So now for editpdf tool we wouldnt need a loading option to make the document edit ready since we're only loading 5, they should become ready for editing immidiately. To be honest, i think making them editable ready might not happen as quick, so how about doing that "making page editable" task page by page for upto 5 pages. We make the page which is viewable on the users front editable properly first, then we do the rest of the pages. If the users are scrolling past pages, then we dont really need to make them editable, its when they stop at a page that we make it editable and the 5 pages near it, including it.
+I think this logic can be applied to all tools where pdf previews are a thing in our site(only for those that show multiple pages at once and not which show one page at a time like the crop tool)
+
+
+But as i was saying, ilovepdf has negative factors which i listed, so our clear winning points are first, privacy focused, 500 MB limit, free forever, no rate limits and if you need more, then think about them.
+
+
+I used a site to get good seo terms for each page(dont use the adobe acrobat ones). Make sure to use these terms in proper paragraphs or something and not just stuff them seperated by comma cause that'll be negative:
+
+1. Main term: Merge PDF
+Supporting words: merge pdf, merge pdf free, how to merge pdf files, merge pdf files, merge pdf online, merge pdf online free, adobe merge pdf, merge pdf files free, adobe acrobat merge pdf, merge pdf adobe, free merge pdf, merge pdf for free, how to merge pdf files into one, merge pdf documents, how to merge pdf, how to merge pdf files mac, merge pdf files online, merge pdf files for free, merge pdf free online, ilovepdf merge pdf
+
+2. Main term: Split PDF
+Supporting words: split pdf, how to split pdf files, split pdf pages, split pdf online free, split pdf online, split pdf free, how to split pdf pages, split pdf into multiple files, adobe split pdf, split pdf adobe, adobe acrobat split pdf, best tool to split pdf files, how to split pdf into multiple files, where to split pdf documents easily, split pdf files, split pdf file, how to split pdf, split pdf into pages, split pdf free online, split pdf document
+
+3. Main term: Rearrange PDF pages
+Supporting words: rearrange pdf pages, rearrange pdf pages free, rearrange pdf pages online, rearrange pdf pages online free, rearrange pdf pages online free, rearrange pdf pages adobe, how to rearrange pdf pages online free, free rearrange pdf pages, delete and rearrange pdf pages, how to rearrange pdf pages free, rearrange pdf pages mac, can you rearrange pdf pages, can i rearrange pdf pages, rearrange pdf pages for free, how to rearrange pdf pages adobe acrobat, rearrange pdf pages iphone, best free ways to rearrange pdf pages 2026, best way to rearrange pdf pages, rearrange pdf pages free online, how to rearrange pdf pages on mac
+
+4. Main term: Compress PDF
+Supporting words: compress pdf, compress pdf free, adobe compress pdf, how to compress pdf files, compress pdf file, compress pdf online, compress pdf online free, compress pdf file size, adobe acrobat compress pdf, how to compress pdf, free compress pdf, compress pdf adobe acrobat, compress pdf for free, compress pdf adobe, compress pdf size, how to compress pdf file size, compress pdf files, compress pdf free online, compress pdf file free, compress pdf file free
+
+5. Main Term: Rotate PDF
+Supporting words: rotate pdf, how to rotate pdf, rotate pdf online, rotate pdf free, rotate pdf pages, rotate pdf and save, how to rotate pdf and save, rotate pdf online free, rotate pdf online free, rotate pdf shortcut, how to rotate pdf file, how do you rotate pdf, how to rotate pdf in adobe, adobe rotate pdf, rotate pdf mac, how to rotate pdf on iphone, permanently rotate pdf, rotate pdf file, rotate pdf free online, rotate pdf windows
+
+6. Main term: add page numbers to pdf
+Supporting words: add page numbers to pdf, how to add page numbers to pdf, add page numbers to pdf online, add page numbers to pdf free, python add page numbers to pdf, add page numbers to pdf online free, add page numbers to pdf in acrobat, how to add page numbers to pdf in adobe, tools to add page numbers to pdf, add page numbers to pdf bluebeam, bluebeam add page numbers to pdf, add page numbers to pdf mac, add page numbers to pdf acrobat, add page numbers to pdf adobe, adobe add page numbers to pdf, add page numbers to pdf file, adobe acrobat add page numbers to pdf, how to add page numbers to pdf in adobe acrobat, mac preview add page numbers to pdf, best online tool to add page numbers to pdf
+
+7. Main term: Word to PDF
+Supporting words: word to pdf, convert word to pdf, word to pdf converter, how to convert word to pdf, convert word to pdf free, word to pdf converter free, convert word to pdf online free, word to pdf free, adobe word to pdf, free word to pdf converter, how to change word to pdf, word to pdf online, from word to pdf, word to pdf converter online free, word to pdf converter online, convert from word to pdf, convert word to pdf online, change word to pdf, free online word to pdf converter, converting word to pdf
+
+8. Main term: Excel to PDF
+Supporting words: excel to pdf, convert excel to pdf, excel to pdf converter, how to convert excel to pdf, convert excel to pdf free, convert excel to pdf free, how to export excel to pdf, how to convert excel to pdf without losing formatting, converting excel to pdf, convert excel to pdf online free, excel to pdf online, free excel to pdf converter, convert from excel to pdf, convert excel to pdf online, export excel to pdf, how to convert an excel to pdf, how to convert excel to pdf in one page, excel to pdf converter free, excel to pdf converter online, how to change excel to pdf
+
+9. Main term: Image to PDF
+Supporting words: jpg to pdf, png to pdf, webp to pdf, heic to pdf, image to pdf, convert image to pdf, image to pdf converter, how to convert image to pdf, how to convert image to pdf, image to pdf converter free, convert image to pdf free, image to pdf free, image to pdf converter free download, free image to pdf converter, how to convert an image to pdf, online image to pdf converter, how to convert image to pdf online free, image to pdf converter for free, convert image to pdf online free, how to add image to pdf, how to convert image to pdf on iphone, how to change image to pdf, change image to pdf, turn image to pdf, convert jpg to pdf, jpg to pdf converter, convert jpg to pdf free, how to convert jpg to pdf, jpg to pdf free, jpg to pdf converter free, how to change jpg to pdf, combine jpg to pdf, online jpg to pdf converter, merge jpg to pdf, adobe jpg to pdf, free jpg to pdf converter, how to convert a jpg to pdf, free online jpg to pdf converter, free convert jpg to pdf, change jpg to pdf, turn jpg to pdf, converting jpg to pdf, how to change a jpg to pdf
+
+10. Main term: Html to pdf:
+Supporting terms: html to pdf, convert html to pdf, html to pdf converter, how to convert html to pdf, online html to pdf converter free, html to pdf free, "convert html to pdf in php: a, convert html to pdf free, html to pdf converter online free, how to change html to pdf, online html to pdf converter free no signup, html to pdf converter free, free html to pdf converter, weasyprint html to pdf documentation, convert html to pdf shell pdf shell pdf shell, online html to pdf converter, convert html to pdf online free, converting html to pdf, .html to pdf
+
+11. Main term: PDF to Image
+Supporting terms: pdf to image, pdf to image converter, convert pdf to image, how to convert pdf to image, pdf to image converter free, convert pdf to image online free, convert pdf to image free, convert pdf to image file, pdf to image free, how to convert pdf to image free?, convert pdf to image online, pdf to image file, java pdf to image, free pdf to image converter, change pdf to image, convert a pdf to image, pdf to jpg, convert pdf to jpg, pdf to jpg converter, pdf to jpg converter free, how to convert pdf to jpg, pdf to jpg free, convert pdf to jpg free, free pdf to jpg converter, change pdf to jpg, how to convert a pdf to jpg, how to change pdf to jpg, free convert pdf to jpg, pdf to jpg online free, convert a pdf to jpg, how to convert pdf to jpg free, free online pdf to jpg converter, convert from pdf to jpg, converting pdf to jpg
+
+12. Main term: Pdf to text
+Supporting terms: pdf to text, pdf to text converter, convert pdf to text, pdf to text converter free, convert pdf to text free, pdf to text free, how do you convert a pdf to text?, how to convert pdf to text, free pdf to text converter, convert pdf to text file, pdf to text file, converting pdf to text, convert scanned pdf to text, scan pdf to text, convert pdf to text online free, convert pdf to text online, scanned pdf to text, online pdf to text ocr, ocr pdf to text, pdf to text converter online, pdf ocr
+
+13. Main term: Edit pdf
+Supporting terms: edit pdf, edit pdf online, edit pdf online free, edit pdf free, how to edit pdf, how to edit pdf free, how to edit pdf on mac, how to edit pdf on mac free, edit pdf for free, edit pdf free online, how to edit pdf for free, how to edit pdf on iphone, edit pdf text, free edit pdf, how to edit pdf files, how to edit pdf file, Online PDF editor, Free PDF editor, Modify PDF online
+
+14. Main term: watermark pdf
+Supporting terms: watermark pdf api, remove watermark pdf, how to watermark pdf, watermark pdf online, free watermark pdf, watermark pdf free, add watermark pdf, draft watermark pdf, watermark pdf online free, watermark pdf download, remove watermark pdf free, remove draft watermark pdf, remove watermark pdf online, remove watermark pdf online free, 
+
+15. Main term: Redact pdf
+Supporting terms: redact pdf, redact pdf free, how to redact pdf, free redact pdf, redact pdf online free, redact pdf online, redact pdf adobe, adobe redact pdf, redact pdf for free, how to redact pdf free, redact pdf mac, how to redact pdf for free, redact pdf free online, how to redact pdf on mac, redact pdf text
+
+16. Main term: Crop PDF
+Supporting terms: pdf cropper, best pdf cropper for free, free pdf cropper, free pdf cropper, best free pdf cropper online, online pdf cropper, pdf cropper online, best free online pdf cropper, best free pdf cropper 2026, pdf cropper online free, best free pdf cropper, best free online pdf cropper 2026, free pdf cropper tool, free online pdf cropper, best free pdf cropper 2025, best pdf cropper 2026, best free pdf cropper online 2026, free pdf cropper online, crop pdf, how to crop pdf, crop pdf online, crop pdf free, crop pdf online free, how to crop pdf on mac, best tool to crop pdf, crop pdf file, crop pdf pages, crop pdf mac, adobe crop pdf, adobe acrobat crop pdf
+
+17. Main term: Protect PDF
+Supporting terms: password protect pdf, how to password protect pdf, password protect pdf free, protect pdf, password protect pdf file, password protect pdf mac, how to protect pdf from editing, best online tool protect pdf, how do you password protect pdf files, protect pdf from editing, how do you password protect pdf, password protect pdf online, protect pdf with password, lock pdf, lock pdf from editing, how to lock pdf from editing, how to lock pdf, lock pdf with password, how to lock pdf file, how to lock pdf with password, download lock pdf, what does lock pdf mean, lock pdf file, how to lock pdf document, lock pdf for editing, how to lock pdf for editing, lock pdf from editing online, lock pdf document
+
+18. Main term: Unlock PDF
+Supporting terms: unlock pdf online, unlock pdf free, how to unlock pdf, unlock pdf files, unlock pdf online free, unlock pdf file, unlock pdf for editing, how to unlock pdf files, how to unlock pdf for editing, unlock pdf password, how to unlock pdf on iphone, how to unlock pdf file, unlock pdf files free, unlock pdf files online, remove pdf password, how to remove pdf password, remove pdf password online, how to remove pdf password protection, remove pdf password protection, remove pdf password online free, mac preview remove pdf password, remove pdf password free, remove pdf password mac, PDF password remover
+
+19. Main term: Sign PDF
+Supporting terms: sign pdf online, sign pdf online free, sign pdf free, sign pdf free, digitally sign pdf, fill and sign pdf, how to sign pdf on iphone, sign pdf for free, electronically sign pdf, free sign pdf, how to sign pdf document, sign pdf on iphone, sign pdf documents, how to sign pdf electronically, sign pdf document digitally, fill and sign pdf online, how to e sign pdf, sign pdf free online,  E-sign PDF, online PDF signer, digital signature tool, dd signature to PDF, sign PDF online free, draw signature on PDF, signature to PDF, sign PDF online free, draw signature on PDF, Secure PDF signer
+
+20. Main term: Batch Process PDFs
+Supporting terms: PDF batch processor, Batch PDF converter, Batch PDF merger, combine PDFs in bulk, Bulk PDF compressor, reduce PDF size batch, Batch PDF to Word converter,  bulk PDF to JPG, Extract pages from PDF in bulk, Add watermark to multiple PDFs at once, How to batch process PDF files, How to convert multiple PDFs at once, Best batch PDF tools for Windows/Mac
+
+
+21. Main term: WCAG Checker
+Supporting terms: WCAG compliance checker, Accessibility checker, free wcag checker, wcag checker online, wcag checker tool, wcag checker free, wcag checker chrome, online wcag checker, pdf wcag checker, accessibility wcag checker, wcag checker online free
+
+Make sure these seo terms are applied to the mobile layout too

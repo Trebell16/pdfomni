@@ -1,12 +1,21 @@
+import { lazy, Suspense } from 'react'
 import { useLocation } from 'react-router-dom'
 import Header from './Header'
 import Footer from './Footer'
 import ToastContainer from '../Common/ToastContainer'
-import ChatSidebar from '../AI/ChatSidebar'
+import { useAppStore } from '../../store/appStore'
+
+const ChatSidebar = lazy(() => import('../AI/ChatSidebar'))
 
 export default function Layout({ children }) {
   const location = useLocation()
+  const chatOpen = useAppStore((state) => state.chatOpen)
   const isEditPage = ['/tool/edit', '/tool/draw', '/tool/image-edit', '/edit-pdf'].includes(location.pathname)
+  const chat = chatOpen ? (
+    <Suspense fallback={null}>
+      <ChatSidebar />
+    </Suspense>
+  ) : null
 
   if (isEditPage) {
     return (
@@ -15,7 +24,7 @@ export default function Layout({ children }) {
           {children}
         </main>
         <ToastContainer />
-        <ChatSidebar />
+        {chat}
       </>
     )
   }
@@ -28,7 +37,7 @@ export default function Layout({ children }) {
       </main>
       <Footer />
       <ToastContainer />
-      <ChatSidebar />
+      {chat}
     </>
   )
 }

@@ -1,6 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <script>document.documentElement.classList.add('js-enabled');</script>
+    <style>
+      .app-boot {
+        display: none;
+      }
+      .js-enabled .prerendered-seo {
+        display: none !important;
+      }
+      .js-enabled .app-boot {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        display: grid;
+        place-items: center;
+        background: #f8fafc;
+        color: #0f172a;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      .js-enabled[data-theme="dark"] .app-boot {
+        background: #050817;
+        color: #f8fafc;
+      }
+      .app-boot-inner {
+        display: grid;
+        justify-items: center;
+        gap: 14px;
+      }
+      .app-boot-mark {
+        display: grid;
+        width: 44px;
+        height: 44px;
+        place-items: center;
+        border-radius: 10px;
+        background: linear-gradient(135deg, #4f46e5, #a855f7 55%, #db2777);
+        color: #fff;
+        font-size: 26px;
+        font-weight: 800;
+      }
+      .app-boot-name {
+        font-size: 18px;
+        font-weight: 800;
+      }
+      .app-boot-line {
+        width: 112px;
+        height: 3px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(99, 102, 241, 0.12);
+      }
+      .app-boot-line::after {
+        content: "";
+        display: block;
+        width: 45%;
+        height: 100%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, #4f46e5, #db2777);
+        animation: pdfomni-boot 900ms ease-in-out infinite alternate;
+      }
+      @keyframes pdfomni-boot {
+        from { transform: translateX(0); }
+        to { transform: translateX(122%); }
+      }
+    </style>
     <script>
       (function () {
         try {
@@ -33,6 +96,13 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   </head>
   <body>
+    <div class="app-boot" aria-hidden="true">
+      <div class="app-boot-inner">
+        <div class="app-boot-mark">P</div>
+        <div class="app-boot-name">PDFOmni</div>
+        <div class="app-boot-line"></div>
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>

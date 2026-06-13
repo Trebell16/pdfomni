@@ -14,4 +14,5 @@ const app = (
 
 const root = document.getElementById('root')
 document.querySelectorAll('.prerendered-seo').forEach((node) => node.remove())
+document.querySelectorAll('.app-boot').forEach((node) => node.remove())
 createRoot(root).render(app)

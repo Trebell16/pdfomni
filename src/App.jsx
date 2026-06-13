@@ -1,15 +1,23 @@
-import { useEffect, useRef } from 'react'
+import { lazy, Suspense, useEffect, useRef } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import Layout from './components/Layout/Layout'
 import Home from './pages/Home'
-import ToolPage from './pages/ToolPage'
-import WorkflowPage from './pages/WorkflowPage'
-import ToolPageAlias from './pages/ToolPageAlias'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import TermsOfService from './pages/TermsOfService'
 import ContactPage from './pages/ContactPage'
 import AboutPage from './pages/AboutPage'
 import ErrorPage from './pages/ErrorPage'
+
+const ToolPage = lazy(() => import('./pages/ToolPage'))
+const WorkflowPage = lazy(() => import('./pages/WorkflowPage'))
+
+function RouteLoader() {
+  return (
+    <div style={{ minHeight: '50vh', display: 'grid', placeItems: 'center' }}>
+      <div className="spinner" aria-label="Loading page" />
+    </div>
+  )
+}
 
 function EditPdfWrapper() {
   return (
@@ -88,41 +96,43 @@ export default function App() {
 
   return (
     <Layout>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/tool/edit" element={<EditPdfWrapper />} />
-        <Route path="/tool/draw" element={<EditPdfWrapper />} />
-        <Route path="/tool/image-edit" element={<EditPdfWrapper />} />
-        <Route path="/tool/:toolId" element={<ToolPage />} />
-        <Route path="/merge" element={<ToolPageAlias toolId="merge" />} />
-        <Route path="/split" element={<ToolPageAlias toolId="split" />} />
-        <Route path="/reorder" element={<ToolPageAlias toolId="reorder" />} />
-        <Route path="/compress" element={<ToolPageAlias toolId="compress" />} />
-        <Route path="/rotate" element={<ToolPageAlias toolId="rotate" />} />
-        <Route path="/page-numbers" element={<ToolPageAlias toolId="page-numbers" />} />
-        <Route path="/word-to-pdf" element={<ToolPageAlias toolId="word-to-pdf" />} />
-        <Route path="/excel-to-pdf" element={<ToolPageAlias toolId="excel-to-pdf" />} />
-        <Route path="/image-to-pdf" element={<ToolPageAlias toolId="image-to-pdf" />} />
-        <Route path="/html-to-pdf" element={<ToolPageAlias toolId="html-to-pdf" />} />
-        <Route path="/pdf-to-image" element={<ToolPageAlias toolId="pdf-to-image" />} />
-        <Route path="/pdf-to-text" element={<ToolPageAlias toolId="pdf-to-text" />} />
-        <Route path="/edit-pdf" element={<EditPdfWrapper />} />
-        <Route path="/watermark" element={<ToolPageAlias toolId="watermark" />} />
-        <Route path="/redact" element={<ToolPageAlias toolId="redact" />} />
-        <Route path="/crop" element={<ToolPageAlias toolId="crop" />} />
-        <Route path="/protect" element={<ToolPageAlias toolId="encrypt" />} />
-        <Route path="/unlock" element={<ToolPageAlias toolId="decrypt" />} />
-        <Route path="/sign" element={<ToolPageAlias toolId="sign" />} />
-        <Route path="/batch" element={<ToolPageAlias toolId="batch" />} />
-        <Route path="/wcag-check" element={<ToolPageAlias toolId="wcag" />} />
-        <Route path="/workflow" element={<WorkflowPage />} />
-        <Route path="/privacy" element={<PrivacyPolicy />} />
-        <Route path="/terms" element={<TermsOfService />} />
-        <Route path="/contact" element={<ContactPage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/500" element={<ErrorPage status={500} />} />
-        <Route path="*" element={<ErrorPage status={404} />} />
-      </Routes>
+      <Suspense fallback={<RouteLoader />}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/tool/edit" element={<EditPdfWrapper />} />
+          <Route path="/tool/draw" element={<EditPdfWrapper />} />
+          <Route path="/tool/image-edit" element={<EditPdfWrapper />} />
+          <Route path="/tool/:toolId" element={<ToolPage />} />
+          <Route path="/merge" element={<ToolPage forcedToolId="merge" />} />
+          <Route path="/split" element={<ToolPage forcedToolId="split" />} />
+          <Route path="/reorder" element={<ToolPage forcedToolId="reorder" />} />
+          <Route path="/compress" element={<ToolPage forcedToolId="compress" />} />
+          <Route path="/rotate" element={<ToolPage forcedToolId="rotate" />} />
+          <Route path="/page-numbers" element={<ToolPage forcedToolId="page-numbers" />} />
+          <Route path="/word-to-pdf" element={<ToolPage forcedToolId="word-to-pdf" />} />
+          <Route path="/excel-to-pdf" element={<ToolPage forcedToolId="excel-to-pdf" />} />
+          <Route path="/image-to-pdf" element={<ToolPage forcedToolId="image-to-pdf" />} />
+          <Route path="/html-to-pdf" element={<ToolPage forcedToolId="html-to-pdf" />} />
+          <Route path="/pdf-to-image" element={<ToolPage forcedToolId="pdf-to-image" />} />
+          <Route path="/pdf-to-text" element={<ToolPage forcedToolId="pdf-to-text" />} />
+          <Route path="/edit-pdf" element={<EditPdfWrapper />} />
+          <Route path="/watermark" element={<ToolPage forcedToolId="watermark" />} />
+          <Route path="/redact" element={<ToolPage forcedToolId="redact" />} />
+          <Route path="/crop" element={<ToolPage forcedToolId="crop" />} />
+          <Route path="/protect" element={<ToolPage forcedToolId="encrypt" />} />
+          <Route path="/unlock" element={<ToolPage forcedToolId="decrypt" />} />
+          <Route path="/sign" element={<ToolPage forcedToolId="sign" />} />
+          <Route path="/batch" element={<ToolPage forcedToolId="batch" />} />
+          <Route path="/wcag-check" element={<ToolPage forcedToolId="wcag" />} />
+          <Route path="/workflow" element={<WorkflowPage />} />
+          <Route path="/privacy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<TermsOfService />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/500" element={<ErrorPage status={500} />} />
+          <Route path="*" element={<ErrorPage status={404} />} />
+        </Routes>
+      </Suspense>
     </Layout>
   )
 }

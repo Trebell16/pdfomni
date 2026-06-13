@@ -3654,6 +3654,7 @@ const app=(()=>{
   let _pageWrappers=[];
   let _drag=null,_editingTextId=null,_textEditorEl=null,_textEditStartSnap=null,_cropModeId=null,_savedEditorRange=null;
   let _pendingRenders=0,_extractionDone=false;
+  let _loadInProgress=false;
   let _textMaskDirty=new Set(); // Track which pages need mask recomputation
   let _clipboard=null,_pasteBump=0;
   let _drawSettings={mode:'rect',stroke:'#6c63ff',fill:'#6c63ff',fillEnabled:true,strokeWidth:3};
@@ -4008,21 +4009,24 @@ const app=(()=>{
 
   // ── LOAD FILE ──────────────────────────────────────────────────
   async function loadFile(fileOrHandle){
+    if(_loadInProgress)return;
+    _loadInProgress=true;
+
     // Clean up previous document
-    await _cleanup();
-
-    let file;
-    if(fileOrHandle instanceof File){
-      file=fileOrHandle;
-    } else {
-      file=await fileOrHandle.getFile();
-    }
-    if(!file||(file.type!=='application/pdf'&&!file.name.endsWith('.pdf'))){snack('Please open a valid PDF file','warn');return;}
-    if(file.size>MAX_UPLOAD_BYTES){snack('PDFOmni supports PDF files up to 500 MB','warn',5000);return;}
-    fileName=file.name.replace(/\.pdf$/i,'')+'-edited.pdf';
-    showProg('Opening PDF…','Reading…',5);
-
     try{
+      await _cleanup();
+
+      let file;
+      if(fileOrHandle instanceof File){
+        file=fileOrHandle;
+      } else {
+        file=await fileOrHandle.getFile();
+      }
+      if(!file||(file.type!=='application/pdf'&&!file.name.endsWith('.pdf'))){snack('Please open a valid PDF file','warn');return;}
+      if(file.size>MAX_UPLOAD_BYTES){snack('PDFOmni supports PDF files up to 500 MB','warn',5000);return;}
+      fileName=file.name.replace(/\.pdf$/i,'')+'-edited.pdf';
+      showProg('Opening PDF…','Reading…',5);
+
       await parser.loadFromFile(file);
       const pc=parser.pageCount;
       const firstDim=await parser.getPageDimensions(0);
@@ -4068,6 +4072,10 @@ const app=(()=>{
     }catch(e){
       hideProg();console.error(e);
       snack('Failed to open PDF: '+e.message,'error',6000);
+    }finally{
+      _loadInProgress=false;
+      const input=document.getElementById('file-input');
+      if(input)input.value='';
     }
   }
 
@@ -4109,6 +4117,7 @@ const app=(()=>{
     parser.destroy();
     selectedId=null;_editingTextId=null;_textEditorEl=null;activePage=0;
     _thumbQueue=[];_thumbBusy=false;
+    _pendingRenders=0;_extractionDone=false;
     // Force GC hint
     await new Promise(r=>setTimeout(r,50));
   }
@@ -4243,7 +4252,7 @@ const app=(()=>{
     requestAnimationFrame(()=>_renderPage(pi));
   }
 
-  async function _renderPage(pi){
+  async function _renderPage(pi,attempt=0){
     const pw=_pageWrappers[pi];if(!pw)return;
     
     // Update progress subtitle
@@ -4318,11 +4327,30 @@ const app=(()=>{
       if(textObjs.length>0)_sampleTextColorsFromCanvas(pi,pw,textObjs);
       _fullRedraw(pi);
       _evictFarPages(activePage);
-    }catch(e){console.warn('render page',pi,e);}
+    }catch(e){
+      if(attempt<1&&parser?.pdfDoc){
+        console.warn('render page retry',pi,e);
+        await new Promise(r=>setTimeout(r,120));
+        return _renderPage(pi,attempt+1);
+      }
+      console.error('render page failed',pi,e);
+      if(pw.placeholder){
+        const message=pw.placeholder.querySelector('span');
+        if(message)message.textContent=`Page ${pi+1} preview failed`;
+        const spinner=pw.placeholder.querySelector('svg');
+        if(spinner)spinner.style.display='none';
+      }
+      if(pi===0){
+        hideProg();
+        snack('Failed to render the PDF preview. Please try opening the file again.','error',6000);
+      }
+    }
     finally{
-      _renderingPages.delete(pi);
-      _pendingRenders=Math.max(0,_pendingRenders-1);
-      _checkAllDone();
+      if(attempt===0){
+        _renderingPages.delete(pi);
+        _pendingRenders=Math.max(0,_pendingRenders-1);
+        _checkAllDone();
+      }
     }
   }
 
@@ -6658,7 +6686,7 @@ const app=(()=>{
     const dz=document.getElementById('drop-zone');
     dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('dragover');});
     dz.addEventListener('dragleave',()=>dz.classList.remove('dragover'));
-    dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f)loadFile(f);});
+    dz.addEventListener('drop',e=>{e.preventDefault();e.stopPropagation();dz.classList.remove('dragover');const f=e.dataTransfer.files[0];if(f)loadFile(f);});
     document.addEventListener('dragover',e=>e.preventDefault());
     document.addEventListener('drop',e=>{e.preventDefault();const f=e.dataTransfer.files[0];if(f&&(f.type==='application/pdf'||f.name.endsWith('.pdf')))loadFile(f);});
   }

@@ -14,10 +14,12 @@
         inset: 0;
         z-index: 9999;
         display: grid;
+        visibility: hidden;
         place-items: center;
         background: #f8fafc;
         color: #0f172a;
         font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        animation: pdfomni-boot-reveal 0s linear 450ms forwards;
       }
       .js-enabled[data-theme="dark"] .app-boot {
         background: #050817;
@@ -63,6 +65,9 @@
         from { transform: translateX(0); }
         to { transform: translateX(122%); }
       }
+      @keyframes pdfomni-boot-reveal {
+        to { visibility: visible; }
+      }
     </style>
     <script>
       (function () {
@@ -74,16 +79,44 @@
         }
       })();
     </script>
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5532127864022306"
-     crossorigin="anonymous"></script> 
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-TSWLYFYBM8"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
       gtag('config', 'G-TSWLYFYBM8');
+
+      (function () {
+        var loaded = false;
+        function loadThirdPartyScripts() {
+          if (loaded) return;
+          loaded = true;
+
+          var analytics = document.createElement('script');
+          analytics.async = true;
+          analytics.src = 'https://www.googletagmanager.com/gtag/js?id=G-TSWLYFYBM8';
+          document.head.appendChild(analytics);
+
+          var adsense = document.createElement('script');
+          adsense.async = true;
+          adsense.crossOrigin = 'anonymous';
+          adsense.src = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5532127864022306';
+          document.head.appendChild(adsense);
+        }
+
+        function scheduleThirdPartyScripts() {
+          if ('requestIdleCallback' in window) {
+            window.requestIdleCallback(loadThirdPartyScripts, { timeout: 2500 });
+          } else {
+            window.setTimeout(loadThirdPartyScripts, 1200);
+          }
+        }
+
+        if (document.readyState === 'complete') {
+          scheduleThirdPartyScripts();
+        } else {
+          window.addEventListener('load', scheduleThirdPartyScripts, { once: true });
+        }
+      })();
     </script>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -93,7 +126,12 @@
     <title>PDFOmni — The Ultimate Client-Side PDF Toolkit</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link
+      rel="preload"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300..900&family=JetBrains+Mono:wght@400..600&display=swap"
+      as="style"
+      onload="this.onload=null;this.rel='stylesheet'"
+    />
   </head>
   <body>
     <div class="app-boot" aria-hidden="true">

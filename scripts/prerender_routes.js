@@ -217,7 +217,7 @@ const routePages = [
     verificationHtml: `
       <p>
         <a href="https://www.foundrlist.com/product/pdfomni?utm_source=badge&amp;utm_medium=embed" rel="noopener">
-          <img src="https://www.foundrlist.com/api/badge/pdfomni" alt="Featured on FoundrList" width="150" height="48">
+          <img src="https://www.foundrlist.com/api/badge/pdfomni" alt="Featured on FoundrList" width="150" height="48" loading="lazy" decoding="async">
         </a>
       </p>
     `,

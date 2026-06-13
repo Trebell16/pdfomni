@@ -256,6 +256,8 @@ export default function Home() {
                 alt="PDFOmni - 100% private, client-side PDF toolkit and AI copilot on Product Hunt"
                 width="250"
                 height="54"
+                loading="lazy"
+                decoding="async"
                 src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1168270&amp;theme=light&amp;t=1781255298179"
               />
               <img
@@ -263,6 +265,8 @@ export default function Home() {
                 alt="PDFOmni - 100% private, client-side PDF toolkit and AI copilot on Product Hunt"
                 width="250"
                 height="54"
+                loading="lazy"
+                decoding="async"
                 src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1168270&amp;theme=dark&amp;t=1781255298179"
               />
             </a>
@@ -279,6 +283,8 @@ export default function Home() {
                 alt="Featured on FoundrList"
                 width="150"
                 height="48"
+                loading="lazy"
+                decoding="async"
               />
             </a>
 
@@ -293,12 +299,16 @@ export default function Home() {
                 src="https://www.uneed.best/EMBED3.png"
                 alt="Launching Soon on Uneed"
                 width="250"
+                loading="lazy"
+                decoding="async"
               />
               <img
                 className="home-featured-image home-featured-image-dark"
                 src="https://www.uneed.best/EMBED3B.png"
                 alt="Launching Soon on Uneed"
                 width="250"
+                loading="lazy"
+                decoding="async"
               />
             </a>
 
@@ -314,6 +324,8 @@ export default function Home() {
                 alt="PDFOmni - Featured on Startup Fame"
                 width="171"
                 height="54"
+                loading="lazy"
+                decoding="async"
               />
             </a>
           </div>

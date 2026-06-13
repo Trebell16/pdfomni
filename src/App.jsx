@@ -2,14 +2,14 @@ import { lazy, Suspense, useEffect, useRef } from 'react'
 import { Routes, Route, useLocation } from 'react-router-dom'
 import Layout from './components/Layout/Layout'
 import Home from './pages/Home'
-import PrivacyPolicy from './pages/PrivacyPolicy'
-import TermsOfService from './pages/TermsOfService'
-import ContactPage from './pages/ContactPage'
-import AboutPage from './pages/AboutPage'
-import ErrorPage from './pages/ErrorPage'
 
 const ToolPage = lazy(() => import('./pages/ToolPage'))
 const WorkflowPage = lazy(() => import('./pages/WorkflowPage'))
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'))
+const TermsOfService = lazy(() => import('./pages/TermsOfService'))
+const ContactPage = lazy(() => import('./pages/ContactPage'))
+const AboutPage = lazy(() => import('./pages/AboutPage'))
+const ErrorPage = lazy(() => import('./pages/ErrorPage'))
 
 function RouteLoader() {
   return (

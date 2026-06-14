@@ -20,6 +20,19 @@ function RouteLoader() {
 }
 
 function EditPdfWrapper() {
+  const isIOSWebKit = /iP(?:ad|hone|od)/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+
+  useEffect(() => {
+    if (isIOSWebKit) {
+      window.location.replace('/editpdf.html?standalone=1')
+    }
+  }, [isIOSWebKit])
+
+  if (isIOSWebKit) {
+    return <RouteLoader />
+  }
+
   return (
     <iframe
       src="/editpdf.html"

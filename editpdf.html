@@ -203,6 +203,7 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Inter',system-ui,s
 .page-obj-layer{position:absolute;top:0;left:0;z-index:3;pointer-events:none;overflow:hidden}
 .page-overlay-canvas{position:absolute;top:0;left:0;z-index:4;pointer-events:none}
 .page-interact-layer{position:absolute;top:0;left:0;z-index:5;cursor:default;touch-action:pan-y}
+.object-hit-target{position:absolute;z-index:1;background:transparent;pointer-events:auto;touch-action:none;-webkit-tap-highlight-color:transparent}
 /* Unrendered page placeholder */
 .page-placeholder{display:flex;align-items:center;justify-content:center;width:100%;height:100%;position:absolute;inset:0;z-index:1}
 .page-placeholder-inner{display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--text-muted);font-size:12px}
@@ -1057,6 +1058,29 @@ function _knownWebFontFamily(name){
   }).join(' ');
 }
 
+function _fontFaces(){
+  const fonts=document.fonts;
+  if(!fonts)return[];
+  if(typeof fonts[Symbol.iterator]==='function'){
+    try{return Array.from(fonts);}catch{}
+  }
+  const out=[];
+  try{fonts.forEach?.(font=>out.push(font));}catch{}
+  return out;
+}
+
+function _fontFaceExists(name){
+  if(!name)return false;
+  const raw=String(name).replace(/^['"]|['"]$/g,'');
+  const wanted=raw.toLowerCase();
+  try{
+    if(document.fonts?.check?.(`12px "${raw.replace(/"/g,'\\"')}"`))return true;
+  }catch{}
+  return _fontFaces().some(font=>
+    String(font?.family||'').replace(/^['"]|['"]$/g,'').toLowerCase()===wanted
+  );
+}
+
 function _pdfInjectedFontFamily(...names){
   const raw=names.filter(Boolean).map(String).join(' ');
   const loaded=raw.match(/\b(g_[a-z0-9]+_f\d+)\b/i)?.[1];
@@ -1068,7 +1092,7 @@ function _pdfInjectedFontFamily(...names){
   const clean=raw.replace(/^[A-Z0-9]{4,8}\+/,'').trim();
   if(clean){
     try{
-      const installed=[...document.fonts].find(f=>f.family.toLowerCase()===clean.toLowerCase());
+      const installed=_fontFaces().find(f=>f.family.toLowerCase()===clean.toLowerCase());
       if(installed)return`"${installed.family}",sans-serif`;
     }catch{}
   }
@@ -1102,6 +1126,9 @@ function _roundRectPath(ctx,x,y,w,h,r=0){
   ctx.arcTo(x,y,x+w,y,radius);
   ctx.closePath();
 }
+const _isIOSWebKit=/iP(?:ad|hone|od)/.test(navigator.userAgent)||
+  (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const _usesTouchHitTargets=_isIOSWebKit||window.matchMedia?.('(pointer:coarse)')?.matches;
 function _measureTextPartWidths(ctx,text,totalWidth){
   const parts=String(text||'').split(/(\s{3,})/).filter(Boolean);
   if(parts.length<=1)return[{text:String(text||''),width:totalWidth}];
@@ -1851,7 +1878,13 @@ class PDFParser{
   }
 
   async _loadPdfDocument(params){
-    const loadingTask=pdfjsLib.getDocument(params);
+    const loadingParams=_isIOSWebKit?{
+      ...params,
+      isOffscreenCanvasSupported:false,
+      isImageDecoderSupported:false,
+      canvasMaxAreaInBytes:24*1024*1024
+    }:params;
+    const loadingTask=pdfjsLib.getDocument(loadingParams);
     let timeoutId;
     const timeout=new Promise((_,reject)=>{
       timeoutId=setTimeout(()=>{
@@ -2001,7 +2034,7 @@ class PDFParser{
     
     // Retrieve all loaded font families in document.fonts matching PDF.js pattern
     try {
-      const families = Array.from(document.fonts)
+      const families = _fontFaces()
         .map(f => f.family)
         .filter(fam => /^g_d\d+_f\d+$/i.test(fam));
         
@@ -2072,11 +2105,23 @@ class PDFParser{
     this._capturePageFonts(pi,page,Object.keys(tc.styles||{}));
     const items=tc.items.filter(i=>i.str&&i.str.trim());
     this._lastTextCount+=items.length;
-    const fontDetails=this._fontDetails(page,tc.styles||{});
-    const colors=this._extractTextColors(opList,items);
+    let fontDetails={};
+    try{fontDetails=this._fontDetails(page,tc.styles||{});}
+    catch(e){console.warn('Detailed font extraction unavailable for page',pi,e);}
+    let colors=[];
+    try{colors=this._extractTextColors(opList,items);}
+    catch(e){console.warn('Text color extraction unavailable for page',pi,e);}
     const hasText=items.length>0;
-    const textObjs=this._buildTextObjs(items,vp,pi,tc.styles||{},colors,fontDetails);
-    let imageObjs=this._buildImageObjs(opList,vp,pi,hasText);
+    let textObjs=[];
+    try{
+      textObjs=this._buildTextObjs(items,vp,pi,tc.styles||{},colors,fontDetails);
+    }catch(e){
+      console.warn('Styled text extraction unavailable for page',pi,e);
+      textObjs=this._buildTextObjs(items,vp,pi,{},[],{});
+    }
+    let imageObjs=[];
+    try{imageObjs=this._buildImageObjs(opList,vp,pi,hasText);}
+    catch(e){console.warn('Image extraction unavailable for page',pi,e);}
     if(textObjs.length&&imageObjs.length){
       imageObjs=this._filterTextImageOverlays(imageObjs,textObjs,vp);
     }
@@ -2678,7 +2723,7 @@ class PDFParser{
     if(loadedNameMatch){
       const loadedName=loadedNameMatch[1];
       // Verify it exists in document.fonts
-      const exists=[...document.fonts].some(f=>f.family===loadedName);
+      const exists=_fontFaceExists(loadedName);
       if(exists)return`"${loadedName}"`;
     }
     
@@ -2686,7 +2731,7 @@ class PDFParser{
     const cleanName=String(n||'').replace(/^[A-Z]{6}\+/,'').trim();
     if(cleanName&&cleanName!==n){
       // Check if this font exists in document.fonts
-      const exists=[...document.fonts].some(f=>f.family.toLowerCase()===cleanName.toLowerCase());
+      const exists=_fontFaceExists(cleanName);
       if(exists)return`"${cleanName}",sans-serif`;
     }
 
@@ -4064,7 +4109,7 @@ const app=(()=>{
       ]);
       
       // Verify it loaded
-      const loaded=[...document.fonts].some(f=>f.family===clean);
+      const loaded=_fontFaceExists(clean);
       if(loaded){
         _fontLoadCache.set(fontName,clean);
         return clean;
@@ -4102,7 +4147,7 @@ const app=(()=>{
       const embeddedFace=String(obj.data.fontFamily||obj.data._originalStyle?.fontFamily||'').match(/\b(g_[a-z0-9]+_f\d+)\b/i)?.[1];
       if(embeddedFace){
         try{
-          if([...document.fonts].some(f=>f.family===embeddedFace)){
+          if(_fontFaceExists(embeddedFace)){
             delete obj.data._missingFont;
             continue;
           }
@@ -4378,6 +4423,7 @@ const app=(()=>{
     const nativeArea=Math.max(1,(firstDim?.width||595)*(firstDim?.height||842));
     const maxPixelsPerCanvas=5000000;
     scale=Math.min(scale,Math.sqrt(maxPixelsPerCanvas/nativeArea));
+    if(_isIOSWebKit)scale=Math.min(scale,2.5);
     return Math.max(1.1,Math.round(scale*100)/100);
   }
 
@@ -4784,13 +4830,16 @@ const app=(()=>{
           linkObjs.forEach(o=>sg.addObject(o,false));
           if(textObjs.length>0)_textMaskDirty.add(pi);
           _extractedPages.add(pi);
+          success=true;
           if(textObjs.length>0)_loadFontsForPage(textObjs).catch(e=>console.warn('Font loading for page',pi,e));
           if(_renderedPages.has(pi)){
-            _hydrateOriginalImages(pi,_pageWrappers[pi]);
-            _sampleTextColorsFromCanvas(pi,_pageWrappers[pi],textObjs);
-            _fullRedraw(pi);
+            try{_hydrateOriginalImages(pi,_pageWrappers[pi]);}
+            catch(e){console.warn('Image hydration unavailable for page',pi,e);}
+            try{_sampleTextColorsFromCanvas(pi,_pageWrappers[pi],textObjs);}
+            catch(e){console.warn('Text color sampling unavailable for page',pi,e);}
+            try{_fullRedraw(pi);}
+            catch(e){console.warn('Initial object redraw unavailable for page',pi,e);}
           }
-          success=true;
         }catch(e){
           console.warn(`extract p${pi} attempt ${attempt+1}`,e);
           if(attempt<2)await new Promise(r=>setTimeout(r,180*(attempt+1)));
@@ -4952,9 +5001,32 @@ const app=(()=>{
       }
       
       _redrawObjLayer(pi,pw,objs);
+      _syncTouchHitTargets(pi,pw,objs);
       _redrawOverlay(pi,pw,objs);
       if(renderToolbar)_renderContextToolbar(pi,pw);
     });
+  }
+
+  function _syncTouchHitTargets(pi,pw,objs){
+    if(!_usesTouchHitTargets||!pw?.interactLayer)return;
+    pw.interactLayer.querySelectorAll('.object-hit-target').forEach(el=>el.remove());
+    const sf=1/RENDER_SCALE;
+    for(const obj of objs){
+      if(!obj.visible||obj.data?._deleted||obj.id===_editingTextId)continue;
+      const rawW=Math.max(1,obj.width*sf),rawH=Math.max(1,obj.height*sf);
+      const width=Math.max(18,rawW),height=Math.max(18,rawH);
+      const hit=document.createElement('div');
+      hit.className='object-hit-target';
+      hit.dataset.objId=obj.id;
+      hit.setAttribute('aria-hidden','true');
+      Object.assign(hit.style,{
+        left:(obj.x*sf-(width-rawW)/2)+'px',
+        top:(obj.y*sf-(height-rawH)/2)+'px',
+        width:width+'px',
+        height:height+'px'
+      });
+      pw.interactLayer.appendChild(hit);
+    }
   }
 
   const _TEXT_STYLE_KEYS=['fontFamily','fontSize','fontWeight','fontStyle','color','backgroundColor','underline','align','lineHeight','letterSpacing','wordSpacing'];
@@ -5812,6 +5884,16 @@ const app=(()=>{
     }
     return null;
   }
+  function _eventHitObject(e,pi,x,y){
+    const id=e.target?.closest?.('.object-hit-target')?.dataset?.objId;
+    const direct=id?sg.objects.get(id):null;
+    return direct?.pageIndex===pi?direct:sg.getObjectAt(pi,x,y);
+  }
+  function _capturePagePointer(pi,e){
+    try{
+      if(e.pointerId!==undefined)_pageWrappers[pi]?.interactLayer?.setPointerCapture?.(e.pointerId);
+    }catch{}
+  }
   function _clampToPage(obj,pi,x,y){
     const pw=_pageWrappers[pi];
     const maxX=Math.max(0,(pw?.nativeW||obj.width)-obj.width);
@@ -5823,7 +5905,7 @@ const app=(()=>{
     if(e.button!==0)return;
     if(e.pointerType==='touch'&&_lastTouchTap.id){
       const{x,y}=_pgCoords(e,pi);
-      const touchHit=sg.getObjectAt(pi,x,y);
+      const touchHit=_eventHitObject(e,pi,x,y);
       const now=Date.now();
       if(touchHit?.type===OT.TEXT&&touchHit.id===_lastTouchTap.id&&now-_lastTouchTap.time<450){
         e.preventDefault();
@@ -5846,10 +5928,10 @@ const app=(()=>{
       if(currentTool==='shape')_hideDrawPanel();
       if(currentTool==='shape'&&_drawSettings.mode==='free'){
         _drag={type:'free',pi,points:[{x,y}],hasMoved:false};
-        _pageWrappers[pi].interactLayer.setPointerCapture(e.pointerId);return;
+        _capturePagePointer(pi,e);return;
       }
       _drag={type:'create',pi,startX:x,startY:y,curX:x,curY:y,tool:currentTool};
-      _pageWrappers[pi].interactLayer.setPointerCapture(e.pointerId);return;
+      _capturePagePointer(pi,e);return;
     }
     if(selectedId){
       const sobj=sg.objects.get(selectedId);
@@ -5863,12 +5945,12 @@ const app=(()=>{
           }else{
             _drag={type:'handle',handle:h,obj:sobj,pi,startX:x,startY:y,origX:sobj.x,origY:sobj.y,origW:sobj.width,origH:sobj.height,origR:sobj.rotation,origFontSize:sobj.data?.fontSize,origLetterSpacing:sobj.data?.letterSpacing||0,origWordSpacing:sobj.data?.wordSpacing||0,cx:sobj.x+sobj.width/2,cy:sobj.y+sobj.height/2,beforeSnap:sg._cl(sobj),hasMoved:false};
           }
-          _pageWrappers[pi].interactLayer.setPointerCapture(e.pointerId);return;
+          _capturePagePointer(pi,e);return;
         }
       }
     }
-    const hit=sg.getObjectAt(pi,x,y);
-    if(hit){e.preventDefault();_select(hit.id);_drag={type:'move',obj:hit,pi,startX:x,startY:y,origX:hit.x,origY:hit.y,beforeSnap:sg._cl(hit),hasMoved:false};_pageWrappers[pi].interactLayer.setPointerCapture(e.pointerId);}
+    const hit=_eventHitObject(e,pi,x,y);
+    if(hit){e.preventDefault();_select(hit.id);_drag={type:'move',obj:hit,pi,startX:x,startY:y,origX:hit.x,origY:hit.y,beforeSnap:sg._cl(hit),hasMoved:false};_capturePagePointer(pi,e);}
     else _deselect();
   }
 
@@ -5877,7 +5959,7 @@ const app=(()=>{
       _updateCursor(e,pi);
       // Check if hovering over a link to show tooltip
       const{x,y}=_pgCoords(e,pi);
-      const hit=sg.getObjectAt(pi,x,y);
+      const hit=_eventHitObject(e,pi,x,y);
       if(hit?.type===OT.LINK){
         _showLinkTooltip(e,hit,pi);
       }else{
@@ -5987,7 +6069,7 @@ const app=(()=>{
   function _onDblClick(e,pi){
     if(e.target?.closest?.('.text-editor-active'))return;
     const{x,y}=_pgCoords(e,pi);
-    const hit=sg.getObjectAt(pi,x,y);
+    const hit=_eventHitObject(e,pi,x,y);
     if(hit?.type===OT.TEXT)_startTextEdit(hit,pi);
     else if(hit?.type===OT.LINK)_showLinkModal(hit);
   }

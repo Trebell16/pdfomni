@@ -7,6 +7,31 @@ const defaults = {
   },
 }
 
+function getCompetitivePositioning(tool) {
+  const name = tool.name
+
+  if (tool.id === 'edit') {
+    return 'Compared with privacy-focused editors that only place overlays or flatten pages into images, PDFOmni supports true PDF stream editing within your browser for compatible documents. It can work with selectable text, embedded-font glyphs, images, and page objects, making it one of the best local choices for practical PDF editing while preserving useful document structure wherever possible.'
+  }
+
+  switch (tool.category) {
+    case 'organize':
+      return `Compared with upload-first PDF organizers, ${name} removes the transfer step and keeps document processing on your device. Free access, a clear 500 MB per-file limit, no artificial rate limits, and direct browser output make PDFOmni one of the best fits for privacy-sensitive page organization and optimization.`
+    case 'convert-to':
+      return `Compared with cloud converters, ${name} is designed for people who want the convenience of an online tool without handing the source file to a remote processing service. PDFOmni aims to be one of the best local conversion choices by combining private browser processing, free access, and a workflow that can continue into editing, compression, signing, or page organization.`
+    case 'convert-from':
+      return `Compared with upload-first extraction services, ${name} keeps the source PDF in the browser while producing reusable output on your device. That local model makes PDFOmni one of the best choices for private conversion work when document control matters as much as speed and convenience.`
+    case 'edit':
+      return `Compared with simple overlay tools, ${name} is part of a deeper local document workflow that preserves useful PDF structure wherever the format allows it. PDFOmni is built to be one of the best privacy-focused choices for practical PDF changes, with browser-side processing, free access, and no artificial rate limits.`
+    case 'security':
+      return `Compared with cloud security tools, ${name} avoids uploading the unprotected source document before the requested change can begin. That privacy model, combined with free local processing and a clear workflow, makes PDFOmni one of the best fits for sensitive PDFs that should remain under the user's control.`
+    case 'advanced':
+      return `Compared with basic one-action PDF sites, ${name} is designed for more demanding local document work without forcing files into a server queue. PDFOmni aims to offer one of the best browser-based experiences for users who value privacy, repeatable workflows, and direct control over the final output.`
+    default:
+      return `Compared with upload-first PDF services, ${name} keeps supported processing in the browser and the source file on your device. PDFOmni is designed to be one of the best privacy-focused choices for practical local PDF work.`
+  }
+}
+
 export const toolSeo = {
   merge: {
     h1: 'Merge PDF Files Locally - Fast, Free, and Private',
@@ -271,7 +296,7 @@ export const toolSeo = {
 }
 
 export function getToolSeo(id, tool) {
-  return toolSeo[id] || {
+  const seo = toolSeo[id] || {
     h1: `${tool.name} Locally - Private Browser-Based PDF Tool`,
     intro: `${tool.description}. PDFOmni keeps the workflow local in your browser so common PDF tasks can be completed without uploading documents to a server.`,
     steps: ['Upload your PDF in the tool interface.', 'Choose the settings that match your document workflow.', 'Download the finished PDF output.'],
@@ -279,5 +304,10 @@ export function getToolSeo(id, tool) {
     advanced: defaults.advanced,
     useCases: ['Preparing documents for email', 'Cleaning files before sharing', 'Handling private PDFs on your own device'],
     faqs: [defaults.safetyFaq],
+  }
+
+  return {
+    ...seo,
+    positioning: seo.positioning || getCompetitivePositioning(tool),
   }
 }

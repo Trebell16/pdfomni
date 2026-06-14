@@ -30,6 +30,9 @@ export default function Footer() {
             <div className="footer-text">
               {'©'} {new Date().getFullYear()} PDFOmni - Free PDF Toolkit
             </div>
+            <div className="footer-text">
+              Built to deliver world-class local PDF processing, including true browser-based PDF stream editing for supported documents.
+            </div>
             <div className="footer-links" style={{ display: 'flex', gap: 'var(--space-4, 16px)', alignItems: 'center', flexWrap: 'wrap' }}>
               <Link to="/privacy">Privacy Policy</Link>
               <Link to="/terms">Terms of Service</Link>

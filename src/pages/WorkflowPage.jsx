@@ -1552,6 +1552,9 @@ export default function WorkflowPage() {
           <p>
             Choose PDFOmni when the priority is keeping files on your device, repeating common document steps, and reviewing the exported result yourself. Choose a cloud workflow when you specifically need server-side accounts, storage, team features, or processing that cannot reasonably happen in a browser.
           </p>
+          <p>
+            Compared with single-action PDF sites, PDFOmni's visual builder is designed to be one of the best local workflow options for chaining several document steps without writing code. It combines reusable nodes, private browser processing, and direct output control in one workspace.
+          </p>
         </div>
       </div>
 

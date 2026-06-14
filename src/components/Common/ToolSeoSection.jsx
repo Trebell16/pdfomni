@@ -36,6 +36,8 @@ export default function ToolSeoSection({ tool, seo }) {
           <p>
             This makes the tool useful as a standalone utility and as part of a larger document workflow when you need to prepare PDFs for email, storage, printing, review, or secure sharing.
           </p>
+          <h3>Compared with Other PDF Tools</h3>
+          <p>{seo.positioning}</p>
         </div>
       </div>
 

@@ -106,7 +106,7 @@ export default function Home() {
     <div className="bg-grid">
       <Seo
         title="PDFOmni | 100% Private PDF Tools"
-        description="Edit, merge, and compress PDFs locally in your browser. Your files never touch a server. Secure, private, and works client-side."
+        description="One of the best privacy-focused PDF toolkits for local editing, merging, compression, conversion, and true browser-based PDF processing."
         canonicalPath="/"
         structuredData={{
           '@context': 'https://schema.org',
@@ -219,21 +219,21 @@ export default function Home() {
             <div>
               <span className="section-label">Why People Use PDFOmni</span>
               <h2 style={{ fontSize: 'var(--text-2xl)', marginTop: 'var(--space-2)' }}>
-                Built for privacy, speed, and low-friction document work
+                Built to set a higher standard for local PDF processing
               </h2>
             </div>
             <div className="seo-grid">
               <div>
-                <h3>Private by architecture</h3>
-                <p>Your PDFs are processed locally in the browser for the core tools, so sensitive document work does not need a remote upload step.</p>
+                <h3>Compared with upload-first tools</h3>
+                <p>PDFOmni keeps core document processing in the browser, making it one of the best choices for users who want capable PDF tools without sending sensitive files to a remote server.</p>
               </div>
               <div>
-                <h3>Faster than upload-first tools</h3>
-                <p>You can jump straight into merging, editing, converting, signing, or watermarking without waiting on a remote upload queue for every job.</p>
+                <h3>True PDF stream editing</h3>
+                <p>The editor goes beyond simple annotations and page screenshots. For supported documents, it works with PDF text streams, embedded font data, images, and selectable content directly within your browser.</p>
               </div>
               <div>
-                <h3>One hub for everyday PDF work</h3>
-                <p>Instead of juggling separate sites for compressing, converting, signing, or reordering pages, PDFOmni keeps the common document tasks in one local-first workspace.</p>
+                <h3>A world-class local toolkit</h3>
+                <p>PDFOmni is built to compete with the best PDF software while staying free, private, and practical across editing, compression, conversion, signing, security, and repeatable workflows.</p>
               </div>
             </div>
           </div>

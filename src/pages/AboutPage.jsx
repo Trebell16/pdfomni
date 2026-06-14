@@ -30,6 +30,10 @@ export default function AboutPage() {
           <p>
             The main priorities are privacy-focused processing, a clear 500 MB file size limit, tools that stay totally free, and no artificial rate limits on local PDF actions. When something breaks, the plan is to improve the tool rather than hide behind vague limits or force users into a paid tier.
           </p>
+          <h2>A Higher Standard for Browser PDF Tools</h2>
+          <p>
+            PDFOmni is being built to stand among the best privacy-focused PDF toolkits, not merely to repeat the same basic upload-and-download flow found elsewhere. Compared with many browser tools, the project invests in deeper local processing, including true PDF stream editing within your browser for supported documents, embedded-font handling, selectable text preservation, large-file workflows, and reusable document automation.
+          </p>
           <h2>What Comes Next</h2>
           <p>
             PDFOmni will keep improving the editor, batch workflows, mobile layouts, accessibility checks, and AI copilot features while staying honest about browser limits. PDFs are complicated files with fonts, images, forms, tables, scans, and permissions, so the project will continue to evolve around real documents and real feedback.

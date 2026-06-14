@@ -141,6 +141,7 @@ function toolPage(tool) {
       paragraphs: [
         `iLovePDF is a popular online PDF toolkit, but its official pricing page describes free use as limited document processing, while Premium includes unlimited processing and an ad-free experience. PDFOmni takes a different approach by focusing on local processing, privacy, and free browser tools.`,
         `That difference matters when the file is private, large, or used repeatedly. PDFOmni is best for users who want a free ${mainTerm} workflow without uploading sensitive content first. iLovePDF can still be useful when a cloud workflow is acceptable, but PDFOmni is designed for privacy-focused local document work.`,
+        seo.positioning,
         `The comparison is not about pretending every tool has the same infrastructure. Cloud PDF services can be convenient, especially for people who already use accounts or team features. PDFOmni is built for the opposite preference: finish the file locally, avoid unnecessary uploads, keep the interface simple, and use other PDFOmni tools only when the document needs an additional step such as compression, signing, redaction, page numbering, unlocking, or conversion.`,
         `Before sharing any exported file, open it and check the result. PDFs are complex containers, and responsible document work means reviewing the output, especially when privacy, accessibility, layout, signatures, redaction, or official submission requirements matter.`,
       ],
@@ -200,6 +201,7 @@ function homePageSections() {
         'Many PDF websites work by uploading the file first, processing it on a remote server, and then sending the result back. PDFOmni takes a local-first approach so supported tools can create the output inside the browser tab. That makes the experience useful for people who care about privacy, speed on large files, and not waiting for a server queue.',
         'PDFOmni sets a clear 500 MB per-file limit for supported PDF tools. Browser performance still depends on the device, file complexity, image resolution, fonts, forms, and page count, but the limit gives users a straightforward boundary before they choose a file.',
         'The site is free to use and does not add artificial rate limits to local browser actions. When a document needs multiple steps, users can move from one PDFOmni tool to another, or use the workflow builder for repeatable document tasks.',
+        'Compared with upload-first services, PDFOmni is built to be one of the best choices for privacy-focused PDF work. Its editor goes beyond simple page overlays: for supported documents, true PDF stream editing within the browser can work with selectable text, embedded-font data, images, and document objects while keeping the source file on the device.',
       ],
     },
   ]
@@ -244,6 +246,7 @@ const routePages = [
         paragraphs: [
           'iLovePDF is a widely used online PDF service, and it can be convenient when uploading files to a cloud workflow is acceptable. Its official pricing describes free use as limited document processing, while Premium includes unlimited processing and an ad-free experience. PDFOmni is positioned differently: it emphasizes local processing, free browser workflows, privacy, and a clear 500 MB per-file limit for supported tools.',
           'That does not mean every browser task is magically faster than a server. A powerful cloud service can be helpful for team accounts, server-side storage, or tasks that require infrastructure outside the browser. PDFOmni is strongest when the user wants control: chain the common PDF actions, avoid unnecessary uploads, keep files on the device, and review the exported result before sharing it.',
+          'Compared with single-action PDF sites, PDFOmni is designed to be one of the best local workflow choices for chaining several document operations without writing code. Reusable nodes, private processing, and direct output control stay together in one browser workspace.',
           'Use the workflow builder when a document process has more than one step. For example, you might merge PDFs, rotate a few pages, add page numbers, apply a watermark, and export the final packet. You might split a large document into sections and then compress the files for email. You might convert pages to images for review or run accessibility checks before sending a public document. The goal is a practical private workflow, not a landing page that hides the actual tool.',
           'For mobile users, the same SEO content remains below the working interface so the page can be indexed without pushing the workflow controls out of reach. The top of the page is for doing the job; the bottom explains how the tool works, who it is for, and why local PDF automation can be a better fit than upload-first PDF websites for sensitive or repeated document tasks.',
         ],
@@ -266,7 +269,7 @@ const routePages = [
     h1: 'PDFOmni Privacy Policy',
     intro: 'PDFOmni is built around local-first PDF tools. This privacy page explains the difference between browser-side document processing and normal website requests such as loading the app, ads, or public assets.',
     sections: [
-      { title: 'Local document handling', paragraphs: ['Core PDF tool operations are designed to run in the browser wherever possible. That means the files you choose for merge, split, edit, redact, sign, and similar workflows are handled on your device rather than uploaded to a PDFOmni processing server.', 'Some website features may still contact third-party services for ads, fonts, or normal web delivery, so users should review the page and browser controls before working with sensitive files.'] },
+      { title: 'Local document handling', paragraphs: ['Core PDF tool operations are designed to run in the browser wherever possible. That means the files you choose for merge, split, edit, redact, sign, and similar workflows are handled on your device rather than uploaded to a PDFOmni processing server.', 'Some website features may still contact third-party services for analytics, AI responses, or normal web delivery, so users should review the page and browser controls before working with sensitive files.', 'Compared with upload-first PDF services, this local architecture is the reason PDFOmni can offer one of the best privacy models for everyday browser-based document work. Supported editing can include true PDF stream editing within the browser rather than requiring the original document to be sent to a remote editor.'] },
     ],
     faq: [],
   },
@@ -277,7 +280,7 @@ const routePages = [
     h1: 'PDFOmni Terms of Service',
     intro: 'These terms describe the basic rules for using PDFOmni tools, including responsibility for uploaded local files, exported documents, and review of final PDF output.',
     sections: [
-      { title: 'Use of PDF tools', paragraphs: ['PDFOmni provides browser-based PDF utilities for document preparation. Users are responsible for making sure they have the right to process each file and for reviewing output before sharing, publishing, or relying on it.', 'PDF documents can contain complex fonts, images, forms, annotations, and permissions. Always inspect exported files when accuracy matters.'] },
+      { title: 'Use of PDF tools', paragraphs: ['PDFOmni provides browser-based PDF utilities for document preparation. Users are responsible for making sure they have the right to process each file and for reviewing output before sharing, publishing, or relying on it.', 'PDF documents can contain complex fonts, images, forms, annotations, and permissions. Always inspect exported files when accuracy matters.', 'PDFOmni is built to compete with the best local and cloud PDF tools through private browser processing, including true PDF stream editing for supported documents. This product goal does not remove the user\'s responsibility to verify important output.'] },
     ],
     faq: [],
   },
@@ -288,7 +291,7 @@ const routePages = [
     h1: 'Contact PDFOmni',
     intro: 'Use the contact page to prepare a support email about PDFOmni tools, PDF workflows, bugs, feature requests, or document handling questions.',
     sections: [
-      { title: 'Support information', paragraphs: ['When reporting an issue, include the tool name, browser, device, file size, and the steps that led to the problem. Avoid sending private documents unless you have removed sensitive information first.', 'For layout, export, or mobile issues, screenshots are helpful because PDF behavior can vary across file types and browsers.'] },
+      { title: 'Support information', paragraphs: ['When reporting an issue, include the tool name, browser, device, file size, and the steps that led to the problem. Avoid sending private documents unless you have removed sensitive information first.', 'For layout, export, or mobile issues, screenshots are helpful because PDF behavior can vary across file types and browsers.', 'Feedback helps PDFOmni improve its goal of delivering one of the best privacy-focused PDF experiences available in a browser, from true PDF stream editing on supported files to local conversion, security, accessibility, and workflow automation.'] },
     ],
     faq: [],
   },
@@ -305,6 +308,7 @@ const routePages = [
           'PDFOmni started as a college project from a student who kept running into the same PDF problem: simple tools were often locked behind accounts, upload limits, or cloud processing flows that felt wrong for private documents.',
           'The project focuses on privacy-focused PDF tools, a clear 500 MB file size limit, totally free access, and no artificial rate limits on local browser actions.',
           'PDFOmni is maintained independently and improves around real user feedback, especially document export issues, mobile usability, editor behavior, accessibility checks, and browser-based PDF workflows.',
+          'The long-term goal is to build one of the best privacy-focused PDF toolkits available. Compared with basic browser utilities, PDFOmni invests in deeper local processing such as true PDF stream editing within your browser for supported documents, embedded-font handling, selectable-text preservation, large-file workflows, and visual document automation.',
         ],
       },
     ],

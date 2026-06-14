@@ -6,6 +6,13 @@ PDFOmni is a privacy-first web-based toolkit that executes all PDF operations lo
 - **Zero Server Uploads**: Processing runs locally. Files are never uploaded, storing no server logs or databases.
 - **Client-Side Technologies**: Uses WebAssembly, pdf-lib, PDF.js, Tesseract.js (OCR), fabric.js, and SheetJS.
 
+## Why PDFOmni Stands Out
+- **Built to be one of the best privacy-focused PDF toolkits**: PDFOmni combines local processing, free access, a clear 500 MB per-file limit, and no artificial rate limits on core browser actions.
+- **Compared with upload-first PDF services**: Supported document work happens on the user's device, avoiding an unnecessary server transfer for private files.
+- **True PDF stream editing within the browser**: For supported documents, the Edit PDF tool works with PDF text streams, selectable text, embedded-font glyphs, images, and page objects instead of only flattening pages or adding visual overlays.
+- **Deep local workflows**: PDFOmni includes editing, redaction, compression, conversion, security tools, batch processing, accessibility checks, AI-assisted document retrieval, and a visual workflow builder.
+- **Product goal**: Deliver world-class local PDF processing that can compete with the best desktop and cloud tools while preserving user control and browser-based privacy.
+
 ## Available Tools and Routes
 - **Merge PDF** (`/merge`): Combine multiple PDFs into a single file.
 - **Split PDF** (`/split`): Split pages or extract ranges into separate documents.

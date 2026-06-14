@@ -1082,6 +1082,26 @@ function _canvasTextFont(d){
   }).join(',');
   return `${d.fontStyle||'normal'} ${d.fontWeight||'normal'} ${d.fontSize||12}px ${fam}`;
 }
+function _canvas2d(canvas,readable=false){
+  if(!canvas)return null;
+  if(readable){
+    try{return canvas.getContext('2d',{willReadFrequently:true});}catch{}
+  }
+  return canvas.getContext('2d');
+}
+function _roundRectPath(ctx,x,y,w,h,r=0){
+  if(typeof ctx.roundRect==='function'){
+    ctx.roundRect(x,y,w,h,r);
+    return;
+  }
+  const radius=Math.max(0,Math.min(Number(r)||0,Math.abs(w)/2,Math.abs(h)/2));
+  ctx.moveTo(x+radius,y);
+  ctx.arcTo(x+w,y,x+w,y+h,radius);
+  ctx.arcTo(x+w,y+h,x,y+h,radius);
+  ctx.arcTo(x,y+h,x,y,radius);
+  ctx.arcTo(x,y,x+w,y,radius);
+  ctx.closePath();
+}
 function _measureTextPartWidths(ctx,text,totalWidth){
   const parts=String(text||'').split(/(\s{3,})/).filter(Boolean);
   if(parts.length<=1)return[{text:String(text||''),width:totalWidth}];
@@ -1150,7 +1170,7 @@ function _htmlHasRichStyle(html){
 }
 function _sampleTextColorFromCanvas(canvas,box){
   // Sample the actual text color from the rendered canvas
-  const ctx=canvas?.getContext?.('2d');
+  const ctx=_canvas2d(canvas,true);
   if(!ctx||!canvas?.width)return'#000000';
   
   const clamp=(v,min,max)=>Math.max(min,Math.min(max,Math.round(v)));
@@ -1209,7 +1229,7 @@ function _sampleTextColorFromCanvas(canvas,box){
   return `#${hex(avgR)}${hex(avgG)}${hex(avgB)}`;
 }
 function _sampleCanvasColor(source,r,avoidColor=null){
-  const ctx=source?.canvas?source:source?.getContext?.('2d');
+  const ctx=source?.canvas?source:_canvas2d(source,true);
   const canvas=ctx?.canvas;if(!ctx||!canvas?.width)return'#ffffff';
   const clamp=(v,min,max)=>Math.max(min,Math.min(max,Math.round(v)));
   const pad=Math.max(3,Math.round(Math.min(r.width||12,r.height||12)*.08));
@@ -1242,7 +1262,7 @@ function _sampleCanvasColor(source,r,avoidColor=null){
   return`#${hex(best.r)}${hex(best.g)}${hex(best.b)}`;
 }
 function _sampleCanvasBorderColor(source,r){
-  const ctx=source?.canvas?source:source?.getContext?.('2d');
+  const ctx=source?.canvas?source:_canvas2d(source,true);
   const canvas=ctx?.canvas;if(!ctx||!canvas?.width)return _sampleCanvasColor(source,r);
   const clamp=(v,min,max)=>Math.max(min,Math.min(max,Math.round(v)));
   const pad=Math.max(4,Math.round(Math.min(r.width||20,r.height||20)*.08));
@@ -1418,7 +1438,7 @@ function _drawCanvasExportText(ctx,obj){
   return true;
 }
 function _uniformCanvasBg(source,r,avoidColor=null){
-  const ctx=source?.canvas?source:source?.getContext?.('2d');
+  const ctx=source?.canvas?source:_canvas2d(source,true);
   const canvas=ctx?.canvas;if(!ctx||!canvas?.width)return null;
   const avoid=_parseCssColor(avoidColor),bg=_parseCssColor(_sampleCanvasColor(ctx,r,avoidColor));if(!bg)return null;
   const clamp=(v,min,max)=>Math.max(min,Math.min(max,Math.round(v)));
@@ -1488,7 +1508,7 @@ function _eraseOriginalTextGlyphs(ctx,obj,source,fastMode=false,sgInstance=null)
     : [];
     
   try {
-    const sCtx = source.getContext('2d');
+    const sCtx = _canvas2d(source,true);
     const imgData = sCtx.getImageData(sx, sy, w, h);
     const data = imgData.data;
     
@@ -1931,7 +1951,7 @@ class PDFParser{
     const page=await this.getPage(pi);
     const vp=page.getViewport({scale:RENDER_SCALE});
     canvas.width=vp.width;canvas.height=vp.height;
-    const ctx=canvas.getContext('2d');
+    const ctx=_canvas2d(canvas,true);
     ctx.clearRect(0,0,canvas.width,canvas.height);
     const task=page.render({canvasContext:ctx,viewport:vp});
     await task.promise;
@@ -2036,11 +2056,19 @@ class PDFParser{
     const page=await this.getPage(pi);
     await this._primePageFonts(pi,page);
     const vp=page.getViewport({scale:RENDER_SCALE});
-    const[tc,anns,opList]=await Promise.all([
-      page.getTextContent({includeMarkedContent:false}),
-      page.getAnnotations(),
-      page.getOperatorList().catch(()=>null)
-    ]);
+    const tc=await page.getTextContent({includeMarkedContent:false});
+    const anns=await page.getAnnotations().catch(e=>{
+      console.warn('Annotation extraction unavailable for page',pi,e);
+      return[];
+    });
+    let opList=null;
+    try{
+      opList=await page.getOperatorList();
+    }catch(e){
+      await new Promise(r=>setTimeout(r,80));
+      try{opList=await page.getOperatorList();}
+      catch(retryError){console.warn('Image/style extraction unavailable for page',pi,retryError);}
+    }
     this._capturePageFonts(pi,page,Object.keys(tc.styles||{}));
     const items=tc.items.filter(i=>i.str&&i.str.trim());
     this._lastTextCount+=items.length;
@@ -3798,11 +3826,11 @@ class Exporter{
       im.onload=()=>{
         const d=obj.data||{},cw=Math.max(1,Math.round(obj.width)),ch=Math.max(1,Math.round(obj.height));
         const c=document.createElement('canvas');c.width=cw;c.height=ch;
-        const ctx=c.getContext('2d');
+        const ctx=_canvas2d(c,true);
         const cl=Math.min(90,Math.max(0,d.cropLeft||0))/100,ct=Math.min(90,Math.max(0,d.cropTop||0))/100,cr=Math.min(90,Math.max(0,d.cropRight||0))/100,cb=Math.min(90,Math.max(0,d.cropBottom||0))/100;
         const sx=im.naturalWidth*cl,sy=im.naturalHeight*ct,sw=im.naturalWidth*Math.max(.01,1-cl-cr),sh=im.naturalHeight*Math.max(.01,1-ct-cb);
         ctx.save();
-        if(d.borderRadius>0){ctx.beginPath();ctx.roundRect(0,0,cw,ch,Math.min(d.borderRadius,cw/2,ch/2));ctx.clip();}
+        if(d.borderRadius>0){ctx.beginPath();_roundRectPath(ctx,0,0,cw,ch,Math.min(d.borderRadius,cw/2,ch/2));ctx.clip();}
         ctx.translate(d.flipX?cw:0,d.flipY?ch:0);ctx.scale(d.flipX?-1:1,d.flipY?-1:1);
         ctx.filter=[`brightness(${d.brightness??100}%)`,`contrast(${d.contrast??100}%)`,`saturate(${d.bw?0:(d.grayscale?0:(d.saturate??100))}%)`,d.grayscale?'grayscale(1)':'',d.bw?'contrast(999%) grayscale(1)':'',d.blur?`blur(${d.blur}px)`:''].join(' ');
         ctx.drawImage(im,sx,sy,sw,sh,0,0,cw,ch);
@@ -3822,8 +3850,8 @@ class Exporter{
       im.onerror=()=>resolve(null);im.src=src;
     });
   }
-  async _img(ctx,obj){return new Promise(res=>{const im=new Image();im.onload=()=>{const cx=obj.x+obj.width/2,cy=obj.y+obj.height/2;ctx.save();ctx.translate(cx,cy);ctx.rotate(obj.rotation*Math.PI/180);if(obj.data.flipX)ctx.scale(-1,1);if(obj.data.flipY)ctx.scale(1,-1);ctx.filter=[`brightness(${obj.data.brightness??100}%)`,`contrast(${obj.data.contrast??100}%)`,`saturate(${obj.data.saturate??100}%)`].join(' ');if(obj.data.borderRadius>0){ctx.beginPath();ctx.roundRect(-obj.width/2,-obj.height/2,obj.width,obj.height,obj.data.borderRadius);ctx.clip();}ctx.drawImage(im,-obj.width/2,-obj.height/2,obj.width,obj.height);ctx.restore();res();};im.onerror=res;im.src=obj.data.src;});}
-  _shape(ctx,obj){const{shapeType='rect',fill='transparent',stroke='#000',strokeWidth=1,borderRadius=0}=obj.data,cx=obj.x+obj.width/2,cy=obj.y+obj.height/2;ctx.save();ctx.translate(cx,cy);ctx.rotate(obj.rotation*Math.PI/180);ctx.fillStyle=fill;ctx.strokeStyle=stroke;ctx.lineWidth=strokeWidth;if(shapeType==='rect'){ctx.beginPath();ctx.roundRect(-obj.width/2,-obj.height/2,obj.width,obj.height,borderRadius);ctx.fill();if(strokeWidth>0)ctx.stroke();}else{ctx.beginPath();ctx.ellipse(0,0,obj.width/2,obj.height/2,0,0,Math.PI*2);ctx.fill();if(strokeWidth>0)ctx.stroke();}ctx.restore();}
+  async _img(ctx,obj){return new Promise(res=>{const im=new Image();im.onload=()=>{const cx=obj.x+obj.width/2,cy=obj.y+obj.height/2;ctx.save();ctx.translate(cx,cy);ctx.rotate(obj.rotation*Math.PI/180);if(obj.data.flipX)ctx.scale(-1,1);if(obj.data.flipY)ctx.scale(1,-1);ctx.filter=[`brightness(${obj.data.brightness??100}%)`,`contrast(${obj.data.contrast??100}%)`,`saturate(${obj.data.saturate??100}%)`].join(' ');if(obj.data.borderRadius>0){ctx.beginPath();_roundRectPath(ctx,-obj.width/2,-obj.height/2,obj.width,obj.height,obj.data.borderRadius);ctx.clip();}ctx.drawImage(im,-obj.width/2,-obj.height/2,obj.width,obj.height);ctx.restore();res();};im.onerror=res;im.src=obj.data.src;});}
+  _shape(ctx,obj){const{shapeType='rect',fill='transparent',stroke='#000',strokeWidth=1,borderRadius=0}=obj.data,cx=obj.x+obj.width/2,cy=obj.y+obj.height/2;ctx.save();ctx.translate(cx,cy);ctx.rotate(obj.rotation*Math.PI/180);ctx.fillStyle=fill;ctx.strokeStyle=stroke;ctx.lineWidth=strokeWidth;if(shapeType==='rect'){ctx.beginPath();_roundRectPath(ctx,-obj.width/2,-obj.height/2,obj.width,obj.height,borderRadius);ctx.fill();if(strokeWidth>0)ctx.stroke();}else{ctx.beginPath();ctx.ellipse(0,0,obj.width/2,obj.height/2,0,0,Math.PI*2);ctx.fill();if(strokeWidth>0)ctx.stroke();}ctx.restore();}
   _sameTextScalar(a,b){const na=Number(a),nb=Number(b);if(Number.isFinite(na)&&Number.isFinite(nb))return Math.abs(na-nb)<0.01;return String(a??'')===String(b??'');}
   _originalTextChanged(obj){if(!obj||obj.type!==OT.TEXT)return false;if(!obj.isOriginal)return true;const d=obj.data||{};if(d._deleted)return true;if(d._originalContent!==undefined&&d.content!==d._originalContent)return true;if(d._originalHtml!==undefined&&((d.html||'')!==d._originalHtml))return true;if(d._originalHtml===undefined&&d.html&&_htmlHasRichStyle(d.html))return true;const os=d._originalStyle||{},keys=['fontFamily','fontSize','fontWeight','fontStyle','color','backgroundColor','underline','align','lineHeight','letterSpacing','wordSpacing'];for(const k of keys){if(os[k]!==undefined&&!this._sameTextScalar(d[k],os[k]))return true;}const ob=d._originalBox;if(ob){for(const k of ['x','y','width','height','rotation'])if(Math.abs((obj[k]??0)-(ob[k]??0))>0.5)return true;}return false;}
   _renderTextNeeded(obj){return obj.type===OT.TEXT&&obj.visible&&!obj.data?._deleted&&(obj.isOriginal?this._originalTextChanged(obj):!!obj.dirty);}
@@ -3845,7 +3873,7 @@ const app=(()=>{
   let _pageWrappers=[];
   let _drag=null,_editingTextId=null,_textEditorEl=null,_textEditStartSnap=null,_cropModeId=null,_savedEditorRange=null;
   let _lastTouchTap={id:null,time:0};
-  let _pendingRenders=0,_extractionDone=false;
+  let _pendingRenders=0,_extractionDone=false,_initialExtractionFailed=false,_initialPagePrepared=false;
   let _loadInProgress=false;
   let _textMaskDirty=new Set(); // Track which pages need mask recomputation
   let _clipboard=null,_pasteBump=0;
@@ -3956,7 +3984,7 @@ const app=(()=>{
   const _extractedPages=new Set();
   const _extractingPages=new Set();
   // Sequential thumbnail queue
-  let _thumbQueue=[];let _thumbBusy=false;
+  let _thumbQueue=[];let _thumbBusy=false,_thumbStarted=false;
   // Loading message rotation
   let _loadingMessageIndex=0;
   let _loadingMessageStartTime=0;
@@ -3966,7 +3994,11 @@ const app=(()=>{
     if(_extractionDone&&_pendingRenders<=0){
       _extractionDone=false;
       hideProg();
-      snack('Document ready for editing','success');
+      if(_initialExtractionFailed){
+        snack('The page preview loaded, but editable content could not be prepared. Try reopening the PDF.','error',7000);
+      }else{
+        snack('Document ready for editing','success');
+      }
     }
   }
 
@@ -4262,10 +4294,6 @@ const app=(()=>{
       showProg('Building layout…','',20);
       await _buildShells(firstDim);      // create DOM shells (no render yet)
       _fitCanvasToMobile();
-      _setupVirtualisation();   // IntersectionObserver to render on scroll
-      _startThumbQueue();       // sequential thumbnail generation
-      _ensureEditableWindow(0,true);
-
       snack(`Opened "${file.name}" — ${pc} page${pc>1?'s':''}`,'success');
       document.getElementById('drop-zone').classList.add('hidden');
       const canvasScroll=document.getElementById('canvas-scroll');
@@ -4337,8 +4365,8 @@ const app=(()=>{
     });
     parser.destroy();
     selectedId=null;_editingTextId=null;_textEditorEl=null;activePage=0;
-    _thumbQueue=[];_thumbBusy=false;
-    _pendingRenders=0;_extractionDone=false;
+    _thumbQueue=[];_thumbBusy=false;_thumbStarted=false;
+    _pendingRenders=0;_extractionDone=false;_initialExtractionFailed=false;_initialPagePrepared=false;
     // Force GC hint
     await new Promise(r=>setTimeout(r,50));
   }
@@ -4505,7 +4533,16 @@ const app=(()=>{
       // Hide placeholder
       if(pw.placeholder)pw.placeholder.style.display='none';
       _renderedPages.add(pi);
-      _ensureEditableWindow(pi);
+      if(pi===0&&!_initialPagePrepared){
+        const extracted=await _extractPageForEditing(pi,true);
+        _initialExtractionFailed=!extracted;
+        _initialPagePrepared=true;
+        _setupVirtualisation();
+        _ensureEditableWindow(pi);
+        _startThumbQueue();
+      }else{
+        _ensureEditableWindow(pi);
+      }
       _hydrateOriginalImages(pi,pw);
       
       // Patch text objects with real font names from PDF.js
@@ -4553,7 +4590,7 @@ const app=(()=>{
 
   function _hydrateOriginalImages(pi,pw){
     if(!pw?.bgCanvas?.width)return;
-    const cvs=pw.bgCanvas,ctx=cvs.getContext('2d');
+    const cvs=pw.bgCanvas,ctx=_canvas2d(cvs,true);
     sg.getPageObjects(pi).forEach(obj=>{
       if(obj.type!==OT.IMAGE||!obj.isOriginal||obj.data.src)return;
       const b=obj.data._originalBox||obj;
@@ -4570,7 +4607,7 @@ const app=(()=>{
   }
 
   function _detectOriginalTextUnderlines(pi,pw){
-    const cvs=pw?.bgCanvas,ctx=cvs?.getContext?.('2d');if(!ctx||!cvs.width)return;
+    const cvs=pw?.bgCanvas,ctx=_canvas2d(cvs,true);if(!ctx||!cvs.width)return;
     const dist=(r,g,b,c)=>Math.hypot(r-c[0],g-c[1],b-c[2]);
     for(const obj of sg.getPageObjects(pi)){
       if(obj.type!==OT.TEXT||!obj.isOriginal||obj.data?._underlineChecked)continue;
@@ -4669,6 +4706,8 @@ const app=(()=>{
 
   // ── THUMBNAIL QUEUE (sequential) ──────────────────────────────
   function _startThumbQueue(){
+    if(_thumbStarted)return;
+    _thumbStarted=true;
     _thumbQueue=Array.from({length:parser.pageCount},(_,i)=>i);
     _thumbBusy=false;
     _processThumbQueue();
@@ -4725,29 +4764,41 @@ const app=(()=>{
   }
 
   async function _extractPageForEditing(pi,initial=false){
-    if(!initial&&!_editableWindowPages(activePage).includes(pi))return;
-    if(_extractedPages.has(pi)||_extractingPages.has(pi)||!parser?.pdfDoc)return;
+    if(!initial&&!_editableWindowPages(activePage).includes(pi))return false;
+    if(_extractedPages.has(pi))return true;
+    if(_extractingPages.has(pi)||!parser?.pdfDoc)return false;
     _extractingPages.add(pi);
     if(initial&&document.getElementById('prog')?.classList.contains('on')){
       document.getElementById('prog-title').textContent='Making page editable';
       document.getElementById('prog-sub').textContent=`Preparing page ${pi+1} of ${parser.pageCount}`;
       _setProg(70);
     }
+    let success=false;
     try{
-      const{textObjs,imageObjs,linkObjs}=await parser.extractObjects(pi);
-      _applyEmbeddedFontChains(textObjs,pi,true);
-      textObjs.forEach(o=>sg.addObject(o,false));
-      imageObjs.forEach(o=>sg.addObject(o,false));
-      linkObjs.forEach(o=>sg.addObject(o,false));
-      if(textObjs.length>0)_textMaskDirty.add(pi);
-      _extractedPages.add(pi);
-      if(textObjs.length>0)_loadFontsForPage(textObjs).catch(e=>console.warn('Font loading for page',pi,e));
-      if(_renderedPages.has(pi)){
-        _hydrateOriginalImages(pi,_pageWrappers[pi]);
-        _sampleTextColorsFromCanvas(pi,_pageWrappers[pi],textObjs);
-        _fullRedraw(pi);
+      for(let attempt=0;attempt<3&&!success;attempt++){
+        try{
+          const{textObjs,imageObjs,linkObjs}=await parser.extractObjects(pi);
+          _applyEmbeddedFontChains(textObjs,pi,true);
+          textObjs.forEach(o=>sg.addObject(o,false));
+          imageObjs.forEach(o=>sg.addObject(o,false));
+          linkObjs.forEach(o=>sg.addObject(o,false));
+          if(textObjs.length>0)_textMaskDirty.add(pi);
+          _extractedPages.add(pi);
+          if(textObjs.length>0)_loadFontsForPage(textObjs).catch(e=>console.warn('Font loading for page',pi,e));
+          if(_renderedPages.has(pi)){
+            _hydrateOriginalImages(pi,_pageWrappers[pi]);
+            _sampleTextColorsFromCanvas(pi,_pageWrappers[pi],textObjs);
+            _fullRedraw(pi);
+          }
+          success=true;
+        }catch(e){
+          console.warn(`extract p${pi} attempt ${attempt+1}`,e);
+          if(attempt<2)await new Promise(r=>setTimeout(r,180*(attempt+1)));
+        }
       }
-    }catch(e){console.warn('extract p'+pi,e);}
+      if(initial&&!success)_initialExtractionFailed=true;
+      return success;
+    }
     finally{
       _extractingPages.delete(pi);
       if(initial){

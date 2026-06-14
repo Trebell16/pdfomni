@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => ({
     exclude: ['pdfjs-dist'],
   },
   build: {
-    target: 'esnext',
+    target: 'safari15',
     outDir: mode === 'protected' ? '../obfuscated_dist/compress/app' : '../dist/compress/app',
     sourcemap: false,
     // manualChunks as function is supported by Rolldown (Vite 6+)

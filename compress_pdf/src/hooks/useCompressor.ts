@@ -44,18 +44,28 @@ export function useCompressor(): UseCompressorReturn {
   const workerRef    = useRef<Worker | null>(null);
   const resultUrlRef = useRef<string | null>(null);
   const analysisSeqRef = useRef(0);
+  const analysisTimeoutRef = useRef<number | null>(null);
+
+  const clearAnalysisTimeout = useCallback(() => {
+    if (analysisTimeoutRef.current !== null) {
+      window.clearTimeout(analysisTimeoutRef.current);
+      analysisTimeoutRef.current = null;
+    }
+  }, []);
 
   // Terminate worker and revoke any object URL on unmount
   useEffect(() => {
     return () => {
+      clearAnalysisTimeout();
       workerRef.current?.terminate();
       if (resultUrlRef.current) URL.revokeObjectURL(resultUrlRef.current);
     };
-  }, []);
+  }, [clearAnalysisTimeout]);
 
   const loadFile = useCallback((f: File) => {
     // Clean up previous state
     const analysisSeq = ++analysisSeqRef.current;
+    clearAnalysisTimeout();
     workerRef.current?.terminate();
     workerRef.current = null;
     if (resultUrlRef.current) { URL.revokeObjectURL(resultUrlRef.current); resultUrlRef.current = null; }
@@ -86,6 +96,7 @@ export function useCompressor(): UseCompressorReturn {
         }
         const { type, payload } = event.data;
         if (type === 'ANALYSIS') {
+          clearAnalysisTimeout();
           setAnalysis(payload as PdfAnalysis);
           worker.terminate();
           if (workerRef.current === worker) workerRef.current = null;
@@ -94,6 +105,9 @@ export function useCompressor(): UseCompressorReturn {
 
       worker.onerror = (err) => {
         console.error('Analysis worker error:', err);
+        clearAnalysisTimeout();
+        setErrorMsg('The PDF analysis engine could not start in this browser. Please refresh and try again.');
+        setStage('error');
         worker.terminate();
         if (workerRef.current === worker) workerRef.current = null;
       };
@@ -102,19 +116,31 @@ export function useCompressor(): UseCompressorReturn {
         { type: 'ANALYZE', payload: { buffer, targetPct: 100, fileName: f.name } },
         [buffer]
       );
+
+      analysisTimeoutRef.current = window.setTimeout(() => {
+        if (analysisSeq !== analysisSeqRef.current) return;
+        worker.terminate();
+        if (workerRef.current === worker) workerRef.current = null;
+        setErrorMsg('PDF analysis timed out. Please refresh and try again.');
+        setStage('error');
+      }, 45000);
     };
     reader.onerror = () => {
       if (analysisSeq === analysisSeqRef.current) {
+        clearAnalysisTimeout();
         console.error('Failed to read PDF for analysis.');
+        setErrorMsg('Failed to read the PDF file. Please try again.');
+        setStage('error');
       }
     };
     reader.readAsArrayBuffer(f);
-  }, []);
+  }, [clearAnalysisTimeout]);
 
   const startCompress = useCallback(() => {
     if (!file) return;
 
     analysisSeqRef.current++;
+    clearAnalysisTimeout();
     workerRef.current?.terminate();
     workerRef.current = null;
     setStage('compressing');
@@ -216,10 +242,11 @@ export function useCompressor(): UseCompressorReturn {
     };
 
     reader.readAsArrayBuffer(file);
-  }, [file, targetPct]);
+  }, [clearAnalysisTimeout, file, targetPct]);
 
   const reset = useCallback(() => {
     workerRef.current?.terminate();
+    clearAnalysisTimeout();
     workerRef.current = null;
     if (resultUrlRef.current) { URL.revokeObjectURL(resultUrlRef.current); resultUrlRef.current = null; }
     setStage('idle');
@@ -229,7 +256,7 @@ export function useCompressor(): UseCompressorReturn {
     setResult(null);
     setErrorMsg(null);
     setTargetPct(50);
-  }, []);
+  }, [clearAnalysisTimeout]);
 
   return {
     stage,

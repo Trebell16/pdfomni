@@ -774,11 +774,10 @@ html[data-theme="dark"] .color-rgb-input {
 <script src="/lib/pdf-lib.min.js"></script>
 <script src="/lib/fontkit.umd.min.js"></script>
 <script type="module">
-import * as pdfjsLib from 'pdfjs-dist';
-import { createQpdfRunner } from 'qpdf-run';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 window.pdfjsLib = pdfjsLib;
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
 
 let pdfOmniQpdfRunnerPromise = null;
 function toUint8Array(bytes) {
@@ -797,11 +796,13 @@ function hasEncryptToken(bytes) {
 }
 async function getPdfOmniQpdfRunner() {
   if (!pdfOmniQpdfRunnerPromise) {
-    pdfOmniQpdfRunnerPromise = createQpdfRunner({
-      workerUrl: new URL('qpdf-run/worker', import.meta.url).href,
-      qpdfJsUrl: new URL('qpdf-run/qpdf.js', import.meta.url).href,
-      wasmUrl: new URL('qpdf-run/qpdf.wasm', import.meta.url).href,
-      timeoutMs: 60000,
+    pdfOmniQpdfRunnerPromise = import('qpdf-run').then(({createQpdfRunner}) => {
+      return createQpdfRunner({
+        workerUrl: new URL('qpdf-run/worker', import.meta.url).href,
+        qpdfJsUrl: new URL('qpdf-run/qpdf.js', import.meta.url).href,
+        wasmUrl: new URL('qpdf-run/qpdf.wasm', import.meta.url).href,
+        timeoutMs: 60000,
+      });
     });
   }
   return pdfOmniQpdfRunnerPromise;
@@ -1811,13 +1812,13 @@ class PDFParser{
       this._bytes=buf;
       this._fontHints=this._extractFontHints(buf);
       this._pdfLibGenerated=this._looksPdfLibGenerated(buf);
-      this.pdfDoc=await pdfjsLib.getDocument({data:buf.slice(0),enableXfa:false}).promise;
+      this.pdfDoc=await this._loadPdfDocument({data:buf.slice(0),enableXfa:false});
       this._pdfLibGenerated=this._pdfLibGenerated||await this._metadataLooksGenerated();
     } else {
       // Large files: use custom range transport
       this._pdfLibGenerated=await this._looksPdfLibGeneratedFile(file);
       const transport=this._makeRangeTransport(file);
-      this.pdfDoc=await pdfjsLib.getDocument({range:transport,enableXfa:false}).promise;
+      this.pdfDoc=await this._loadPdfDocument({range:transport,enableXfa:false});
       this._pdfLibGenerated=this._pdfLibGenerated||await this._metadataLooksGenerated();
       // Keep a weak reference to the file for export (no full read)
       this._file=file;
@@ -1827,6 +1828,22 @@ class PDFParser{
     this._pageCache.clear();
     this._fontsPrimed.clear();
     return this.pdfDoc;
+  }
+
+  async _loadPdfDocument(params){
+    const loadingTask=pdfjsLib.getDocument(params);
+    let timeoutId;
+    const timeout=new Promise((_,reject)=>{
+      timeoutId=setTimeout(()=>{
+        try{loadingTask.destroy();}catch{}
+        reject(new Error('PDF engine timed out while opening this file. Please refresh and try again.'));
+      },30000);
+    });
+    try{
+      return await Promise.race([loadingTask.promise,timeout]);
+    }finally{
+      clearTimeout(timeoutId);
+    }
   }
 
   _looksPdfLibGenerated(buf){

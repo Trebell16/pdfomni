@@ -1,6 +1,6 @@
-import { createQpdfRunner } from 'qpdf-run';
+type QpdfRunner = Awaited<ReturnType<(typeof import('qpdf-run'))['createQpdfRunner']>>;
 
-let runnerPromise: ReturnType<typeof createQpdfRunner> | null = null;
+let runnerPromise: Promise<QpdfRunner> | null = null;
 
 function toUint8Array(bytes: ArrayBuffer | Uint8Array): Uint8Array {
   return bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
@@ -20,11 +20,13 @@ function isEncryptedPdfBytes(bytes: ArrayBuffer | Uint8Array): boolean {
 
 async function getQpdfRunner() {
   if (!runnerPromise) {
-    runnerPromise = createQpdfRunner({
-      workerUrl: new URL('qpdf-run/worker', import.meta.url).href,
-      qpdfJsUrl: new URL('qpdf-run/qpdf.js', import.meta.url).href,
-      wasmUrl: new URL('qpdf-run/qpdf.wasm', import.meta.url).href,
-      timeoutMs: 60000,
+    runnerPromise = import('qpdf-run').then(({ createQpdfRunner }) => {
+      return createQpdfRunner({
+        workerUrl: new URL('qpdf-run/worker', import.meta.url).href,
+        qpdfJsUrl: new URL('qpdf-run/qpdf.js', import.meta.url).href,
+        wasmUrl: new URL('qpdf-run/qpdf.wasm', import.meta.url).href,
+        timeoutMs: 60000,
+      });
     });
   }
   return runnerPromise;

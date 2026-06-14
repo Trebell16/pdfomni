@@ -1,5 +1,3 @@
-import { createQpdfRunner } from 'qpdf-run'
-
 let runnerPromise = null
 
 function toUint8Array(bytes) {
@@ -20,11 +18,13 @@ export function isEncryptedPdfBytes(bytes) {
 
 async function getQpdfRunner() {
   if (!runnerPromise) {
-    runnerPromise = createQpdfRunner({
-      workerUrl: new URL('qpdf-run/worker', import.meta.url).href,
-      qpdfJsUrl: new URL('qpdf-run/qpdf.js', import.meta.url).href,
-      wasmUrl: new URL('qpdf-run/qpdf.wasm', import.meta.url).href,
-      timeoutMs: 60000,
+    runnerPromise = import('qpdf-run').then(({ createQpdfRunner }) => {
+      return createQpdfRunner({
+        workerUrl: new URL('qpdf-run/worker', import.meta.url).href,
+        qpdfJsUrl: new URL('qpdf-run/qpdf.js', import.meta.url).href,
+        wasmUrl: new URL('qpdf-run/qpdf.wasm', import.meta.url).href,
+        timeoutMs: 60000,
+      })
     })
   }
   return runnerPromise

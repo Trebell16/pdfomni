@@ -1,14 +1,15 @@
-import * as pdfjsLib from 'pdfjs-dist'
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs'
 
 // Configure PDF.js worker
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
+  'pdfjs-dist/legacy/build/pdf.worker.min.mjs',
   import.meta.url
 ).toString()
 
 const activeCanvasRenders = new WeakMap()
 const documentCache = new WeakMap()
 const MAX_CACHED_DOCUMENTS = 2
+const PDF_LOAD_TIMEOUT_MS = 30000
 const cachedDocumentOrder = []
 let thumbnailQueue = Promise.resolve()
 
@@ -33,9 +34,26 @@ function documentParams(pdfBytes, options = {}) {
   return params
 }
 
+function loadPdfDocument(loadingTask) {
+  let timeoutId
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => {
+      try {
+        loadingTask.destroy()
+      } catch (_) {
+        // The timeout error below is the useful failure for callers.
+      }
+      reject(new Error('PDF engine timed out while opening this file. Please refresh and try again.'))
+    }, PDF_LOAD_TIMEOUT_MS)
+  })
+
+  return Promise.race([loadingTask.promise, timeout])
+    .finally(() => window.clearTimeout(timeoutId))
+}
+
 async function getCachedPdfDocument(pdfBytes, options = {}) {
   if (!(pdfBytes instanceof Uint8Array)) {
-    return pdfjsLib.getDocument(documentParams(pdfBytes, options)).promise
+    return loadPdfDocument(pdfjsLib.getDocument(documentParams(pdfBytes, options)))
   }
 
   let entry = documentCache.get(pdfBytes)
@@ -48,13 +66,20 @@ async function getCachedPdfDocument(pdfBytes, options = {}) {
 
   if (!entry[passwordKey]) {
     const loadingTask = pdfjsLib.getDocument(documentParams(pdfBytes, options))
-    entry[passwordKey] = {
+    const cached = {
       loadingTask,
-      promise: loadingTask.promise,
+      promise: null,
       bytes: pdfBytes,
       passwordKey,
     }
-    cachedDocumentOrder.push(entry[passwordKey])
+    cached.promise = loadPdfDocument(loadingTask).catch((error) => {
+      if (entry[passwordKey] === cached) delete entry[passwordKey]
+      const orderIndex = cachedDocumentOrder.indexOf(cached)
+      if (orderIndex >= 0) cachedDocumentOrder.splice(orderIndex, 1)
+      throw error
+    })
+    entry[passwordKey] = cached
+    cachedDocumentOrder.push(cached)
     while (cachedDocumentOrder.length > MAX_CACHED_DOCUMENTS) {
       const stale = cachedDocumentOrder.shift()
       if (!stale) continue

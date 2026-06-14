@@ -142,12 +142,13 @@ export default function SignTool() {
     return { x: e.clientX - rect.left, y: e.clientY - rect.top }
   }
 
-  const handleSigMouseDown = (e) => {
+  const handleSigPointerDown = (e) => {
+    e.currentTarget.setPointerCapture?.(e.pointerId)
     setIsDrawingSig(true)
     setCurrentSigPath([getSigCanvasCoords(e)])
   }
 
-  const handleSigMouseMove = (e) => {
+  const handleSigPointerMove = (e) => {
     if (!isDrawingSig) return
     const coords = getSigCanvasCoords(e)
     setCurrentSigPath(prev => [...prev, coords])
@@ -167,7 +168,8 @@ export default function SignTool() {
     ctx.stroke()
   }
 
-  const handleSigMouseUp = () => {
+  const handleSigPointerUp = (e) => {
+    if (e?.currentTarget?.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
     if (!isDrawingSig) return
     setIsDrawingSig(false)
     if (currentSigPath.length > 1) {
@@ -284,28 +286,31 @@ export default function SignTool() {
     }
 
     const onUp = () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('pointercancel', onUp)
     }
 
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('pointercancel', onUp)
   }
 
   // Dragging signature on PDF
-  const handlePdfMouseDown = (e) => {
+  const handlePdfPointerDown = (e) => {
     if (!sigDataUrl) return
     const rect = pdfCanvasRef.current.getBoundingClientRect()
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
     if (x >= sigPos.x && x <= sigPos.x + sigPlacedSize.w &&
         y >= sigPos.y && y <= sigPos.y + sigPlacedSize.h) {
+      e.currentTarget.setPointerCapture?.(e.pointerId)
       setIsDragging(true)
       setDragOffset({ x: x - sigPos.x, y: y - sigPos.y })
     }
   }
 
-  const handlePdfMouseMove = (e) => {
+  const handlePdfPointerMove = (e) => {
     if (!isDragging) return
     const rect = pdfCanvasRef.current.getBoundingClientRect()
     const x = e.clientX - rect.left
@@ -313,7 +318,8 @@ export default function SignTool() {
     setSigPos({ x: x - dragOffset.x, y: y - dragOffset.y })
   }
 
-  const handlePdfMouseUp = () => {
+  const handlePdfPointerUp = (e) => {
+    if (e?.currentTarget?.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
     setIsDragging(false)
   }
 
@@ -405,11 +411,12 @@ export default function SignTool() {
                   borderRadius: 'var(--radius-md)',
                   border: '1px solid var(--color-border)',
                   cursor: 'crosshair',
+                  touchAction: 'none',
                 }}
-                onMouseDown={handleSigMouseDown}
-                onMouseMove={handleSigMouseMove}
-                onMouseUp={handleSigMouseUp}
-                onMouseLeave={() => { if (isDrawingSig) handleSigMouseUp() }}
+                onPointerDown={handleSigPointerDown}
+                onPointerMove={handleSigPointerMove}
+                onPointerUp={handleSigPointerUp}
+                onPointerCancel={handleSigPointerUp}
               />
               <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 'var(--space-1)', textAlign: 'center' }}>
                 Draw your signature above
@@ -506,11 +513,12 @@ export default function SignTool() {
           <div className="pdf-preview-container">
             <div className="pdf-preview-wrapper" style={{
               borderRadius: 'var(--radius-lg)', overflow: 'hidden', boxShadow: 'var(--shadow-lg)',
+              touchAction: 'none',
             }}
-              onMouseDown={handlePdfMouseDown}
-              onMouseMove={handlePdfMouseMove}
-              onMouseUp={handlePdfMouseUp}
-              onMouseLeave={handlePdfMouseUp}
+              onPointerDown={handlePdfPointerDown}
+              onPointerMove={handlePdfPointerMove}
+              onPointerUp={handlePdfPointerUp}
+              onPointerCancel={handlePdfPointerUp}
             >
               <canvas ref={pdfCanvasRef} style={{ display: 'block' }} />
               {sigDataUrl && (
@@ -535,7 +543,7 @@ export default function SignTool() {
                     <button
                       key={corner}
                       className={`resize-handle resize-handle-${corner}`}
-                      onMouseDown={(e) => handleResizeStart(e, corner)}
+                      onPointerDown={(e) => handleResizeStart(e, corner)}
                       aria-label={`Resize signature ${corner}`}
                       style={{
                         position: 'absolute',

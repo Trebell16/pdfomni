@@ -228,7 +228,8 @@ export default function CropTool() {
     return 'draw'
   }
 
-  const handleMouseDown = (e) => {
+  const handlePointerDown = (e) => {
+    e.currentTarget.setPointerCapture?.(e.pointerId)
     const coords = getCanvasCoords(e)
     const mode = hitTestCrop(coords)
     setIsDragging(true)
@@ -239,7 +240,7 @@ export default function CropTool() {
     })
   }
 
-  const handleMouseMove = (e) => {
+  const handlePointerMove = (e) => {
     if (!isDragging || !dragStart) return
     const coords = getCanvasCoords(e)
     const { scale } = pageDims.current
@@ -292,7 +293,8 @@ export default function CropTool() {
     })
   }
 
-  const handleMouseUp = () => {
+  const handlePointerUp = (e) => {
+    if (e?.currentTarget?.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
     setIsDragging(false)
     setDragStart(null)
     setDragMode('draw')
@@ -392,11 +394,11 @@ export default function CropTool() {
           <canvas ref={canvasRef} style={{ display: 'block' }} />
           <canvas
             ref={overlayRef}
-            style={{ position: 'absolute', top: 0, left: 0, cursor: 'crosshair' }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={() => { if (isDragging) handleMouseUp() }}
+            style={{ position: 'absolute', top: 0, left: 0, cursor: 'crosshair', touchAction: 'none' }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
           />
         </div>
       </div>

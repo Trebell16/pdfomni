@@ -109,13 +109,14 @@ export default function RedactTool() {
     return { x: e.clientX - rect.left, y: e.clientY - rect.top }
   }
 
-  const handleMouseDown = (e) => {
+  const handlePointerDown = (e) => {
+    e.currentTarget.setPointerCapture?.(e.pointerId)
     const coords = getCanvasCoords(e)
     setIsDrawing(true)
     setDrawStart(coords)
   }
 
-  const handleMouseMove = (e) => {
+  const handlePointerMove = (e) => {
     if (!isDrawing || !drawStart) return
     const coords = getCanvasCoords(e)
     const ctx = overlayRef.current.getContext('2d')
@@ -138,8 +139,9 @@ export default function RedactTool() {
     ctx.restore()
   }
 
-  const handleMouseUp = (e) => {
+  const handlePointerUp = (e) => {
     if (!isDrawing || !drawStart) return
+    if (e.currentTarget.hasPointerCapture?.(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
     const coords = getCanvasCoords(e)
     setIsDrawing(false)
     const w = coords.x - drawStart.x
@@ -241,11 +243,11 @@ export default function RedactTool() {
           <canvas ref={canvasRef} style={{ display: 'block' }} />
           <canvas
             ref={overlayRef}
-            style={{ position: 'absolute', top: 0, left: 0, cursor: 'crosshair' }}
-            onMouseDown={handleMouseDown}
-            onMouseMove={handleMouseMove}
-            onMouseUp={handleMouseUp}
-            onMouseLeave={() => { if (isDrawing) setIsDrawing(false) }}
+            style={{ position: 'absolute', top: 0, left: 0, cursor: 'crosshair', touchAction: 'none' }}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={() => { setIsDrawing(false); setDrawStart(null) }}
           />
         </div>
       </div>

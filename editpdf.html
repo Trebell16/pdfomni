@@ -3844,6 +3844,7 @@ const app=(()=>{
   let activePage=0,selectedId=null,currentTool='select',fileName='edited.pdf';
   let _pageWrappers=[];
   let _drag=null,_editingTextId=null,_textEditorEl=null,_textEditStartSnap=null,_cropModeId=null,_savedEditorRange=null;
+  let _lastTouchTap={id:null,time:0};
   let _pendingRenders=0,_extractionDone=false;
   let _loadInProgress=false;
   let _textMaskDirty=new Set(); // Track which pages need mask recomputation
@@ -5744,8 +5745,13 @@ const app=(()=>{
   function _pgCoords(e,pi){
     const pw=_pageWrappers[pi];if(!pw)return{x:0,y:0};
     const rect=pw.interactLayer.getBoundingClientRect();
-    const sf=RENDER_SCALE;
-    return{x:(e.clientX-rect.left)*sf,y:(e.clientY-rect.top)*sf};
+    if(!rect.width||!rect.height)return{x:0,y:0};
+    const canvasW=pw.overlayCanvas?.width||pw.bgCanvas?.width||(pw.nativeW||rect.width)*RENDER_SCALE;
+    const canvasH=pw.overlayCanvas?.height||pw.bgCanvas?.height||(pw.nativeH||rect.height)*RENDER_SCALE;
+    return{
+      x:(e.clientX-rect.left)*(canvasW/rect.width),
+      y:(e.clientY-rect.top)*(canvasH/rect.height)
+    };
   }
   function _pageIndexFromClient(e){
     for(let i=0;i<_pageWrappers.length;i++){
@@ -5764,6 +5770,17 @@ const app=(()=>{
 
   function _onDown(e,pi){
     if(e.button!==0)return;
+    if(e.pointerType==='touch'&&_lastTouchTap.id){
+      const{x,y}=_pgCoords(e,pi);
+      const touchHit=sg.getObjectAt(pi,x,y);
+      const now=Date.now();
+      if(touchHit?.type===OT.TEXT&&touchHit.id===_lastTouchTap.id&&now-_lastTouchTap.time<450){
+        e.preventDefault();
+        _lastTouchTap={id:null,time:0};
+        _startTextEdit(touchHit,pi);
+        return;
+      }
+    }
     // Check if clicking on toolbar or modal - don't interfere with text editing
     if(e.target?.closest?.('.object-toolbar,.color-popover,.modal'))return;
     _closeColorPopovers();
@@ -5872,6 +5889,16 @@ const app=(()=>{
   function _onUp(e,pi){
     if(!_drag)return;
     const drag=_drag;_drag=null;
+    let touchEditObj=null;
+    if(drag.type==='move'&&!drag.hasMoved&&e.pointerType==='touch'&&drag.obj?.type===OT.TEXT){
+      const now=Date.now();
+      if(_lastTouchTap.id===drag.obj.id&&now-_lastTouchTap.time<450){
+        touchEditObj=drag.obj;
+        _lastTouchTap={id:null,time:0};
+      }else{
+        _lastTouchTap={id:drag.obj.id,time:now};
+      }
+    }
     if(drag.type==='move'&&drag.hasMoved){
       const targetPi=_pageIndexFromClient(e);
       if(targetPi!==null&&targetPi!==drag.obj.pageIndex){
@@ -5903,6 +5930,7 @@ const app=(()=>{
       _fullRedraw(pi);
     }
     _fullRedraw(pi);_updatePropsPanel();
+    if(touchEditObj)_startTextEdit(touchEditObj,touchEditObj.pageIndex);
   }
 
   function _onDblClick(e,pi){

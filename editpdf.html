@@ -1128,6 +1128,8 @@ function _roundRectPath(ctx,x,y,w,h,r=0){
 }
 const _isIOSWebKit=/iP(?:ad|hone|od)/.test(navigator.userAgent)||
   (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const _isSafariWebKit=_isIOSWebKit||
+  (/Safari/i.test(navigator.userAgent)&&!/Chrome|Chromium|CriOS|FxiOS|Edg|OPR|Opera|Android/i.test(navigator.userAgent));
 const _usesTouchHitTargets=_isIOSWebKit||window.matchMedia?.('(pointer:coarse)')?.matches;
 function _measureTextPartWidths(ctx,text,totalWidth){
   const parts=String(text||'').split(/(\s{3,})/).filter(Boolean);
@@ -1878,11 +1880,13 @@ class PDFParser{
   }
 
   async _loadPdfDocument(params){
-    const loadingParams=_isIOSWebKit?{
+    const loadingParams=_isSafariWebKit?{
       ...params,
       isOffscreenCanvasSupported:false,
       isImageDecoderSupported:false,
-      canvasMaxAreaInBytes:24*1024*1024
+      canvasMaxAreaInBytes:_isIOSWebKit?16*1024*1024:64*1024*1024,
+      useSystemFonts:true,
+      stopAtErrors:false
     }:params;
     const loadingTask=pdfjsLib.getDocument(loadingParams);
     let timeoutId;
@@ -2211,16 +2215,18 @@ class PDFParser{
       else if(imageOps.has(fn)){
         const b=bbox(ctm);
         if(b.width>8&&b.height>8&&Number.isFinite(b.x)&&Number.isFinite(b.y)){
-          // Filter out page-sized images ONLY if the page has text content
-          // This allows scanned PDFs (no text, full-page image) to work
-          // while filtering decorative backgrounds (has text + full-page image)
+          const pageArea=Math.max(1,pageWidth*pageHeight);
+          const imageArea=Math.max(1,b.width*b.height);
           const isPageSized=pageWidth>0&&pageHeight>0&&
             Math.abs(b.width-pageWidth)<pageWidth*0.05&&
             Math.abs(b.height-pageHeight)<pageHeight*0.05&&
             Math.abs(b.x)<pageWidth*0.05&&
             Math.abs(b.y)<pageHeight*0.05;
-          
-          const shouldFilter=isPageSized&&hasText;
+          const coversMostPage=pageWidth>0&&pageHeight>0&&
+            imageArea>pageArea*0.72&&
+            b.width>pageWidth*0.72&&b.height>pageHeight*0.72&&
+            b.x<pageWidth*0.18&&b.y<pageHeight*0.18;
+          const shouldFilter=hasText&&(isPageSized||coversMostPage);
           
           if(!shouldFilter){
             const box={x:b.x,y:b.y,width:b.width,height:b.height,rotation:0};
@@ -4424,6 +4430,7 @@ const app=(()=>{
     const maxPixelsPerCanvas=5000000;
     scale=Math.min(scale,Math.sqrt(maxPixelsPerCanvas/nativeArea));
     if(_isIOSWebKit)scale=Math.min(scale,2.5);
+    else if(_isSafariWebKit)scale=Math.min(scale,3);
     return Math.max(1.1,Math.round(scale*100)/100);
   }
 
@@ -5011,7 +5018,7 @@ const app=(()=>{
     if(!_usesTouchHitTargets||!pw?.interactLayer)return;
     pw.interactLayer.querySelectorAll('.object-hit-target').forEach(el=>el.remove());
     const sf=1/RENDER_SCALE;
-    for(const obj of objs){
+    for(const obj of objs.slice().sort((a,b)=>(a.zIndex||0)-(b.zIndex||0))){
       if(!obj.visible||obj.data?._deleted||obj.id===_editingTextId)continue;
       const rawW=Math.max(1,obj.width*sf),rawH=Math.max(1,obj.height*sf);
       const width=Math.max(18,rawW),height=Math.max(18,rawH);
@@ -5023,7 +5030,8 @@ const app=(()=>{
         left:(obj.x*sf-(width-rawW)/2)+'px',
         top:(obj.y*sf-(height-rawH)/2)+'px',
         width:width+'px',
-        height:height+'px'
+        height:height+'px',
+        zIndex:String(Math.max(1,Math.round(obj.zIndex||1)))
       });
       pw.interactLayer.appendChild(hit);
     }

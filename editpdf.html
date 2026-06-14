@@ -1300,7 +1300,6 @@ function _wrapCanvasTextLine(d,line,maxW){
 }
 function _drawCanvasExportText(ctx,obj){
   const d=obj.data||{};
-  if(d.html)return false;
   ctx.save();
   const bg=d.backgroundColor;
   if(bg&&bg!=='transparent'){
@@ -1309,10 +1308,88 @@ function _drawCanvasExportText(ctx,obj){
   }
   const cx=obj.x+obj.width/2,cy=obj.y+obj.height/2;
   ctx.translate(cx,cy);ctx.rotate((obj.rotation||0)*Math.PI/180);ctx.translate(-obj.width/2,-obj.height/2);
-  ctx.font=_canvasTextFont(d);
-  ctx.fillStyle=d.color||'#000';
   ctx.textBaseline='top';
   const fontSize=d.fontSize||12,lineHeight=(d.lineHeight||1.2)*fontSize;
+  if(d.html){
+    const tpl=document.createElement('template');
+    tpl.innerHTML=d.html;
+    const base={
+      fontFamily:d.fontFamily||'sans-serif',
+      fontSize,
+      fontWeight:'normal',
+      fontStyle:'normal',
+      color:d.color||'#000',
+      backgroundColor:'transparent',
+      underline:false,
+      align:d.align||'left'
+    };
+    const styled=(node,style)=>{
+      if(node.nodeType!==1)return style;
+      const next={...style},tag=node.tagName,st=node.style||{};
+      if(tag==='B'||tag==='STRONG')next.fontWeight='bold';
+      if(tag==='I'||tag==='EM')next.fontStyle='italic';
+      if(tag==='U')next.underline=true;
+      if(st.fontFamily)next.fontFamily=st.fontFamily;
+      if(st.fontWeight)next.fontWeight=st.fontWeight;
+      if(st.fontStyle)next.fontStyle=st.fontStyle;
+      if(st.color)next.color=st.color;
+      if(st.backgroundColor)next.backgroundColor=st.backgroundColor;
+      if(st.textAlign)next.align=st.textAlign;
+      const dec=st.textDecoration||st.textDecorationLine;
+      if(dec)next.underline=String(dec).includes('underline');
+      if(st.fontSize){
+        const raw=String(st.fontSize);
+        next.fontSize=raw.endsWith('em')?fontSize*(parseFloat(raw)||1):(parseFloat(raw)||next.fontSize);
+      }
+      return next;
+    };
+    const lines=[{runs:[],align:base.align}];
+    const newline=align=>lines.push({runs:[],align:align||base.align});
+    const collect=(node,style)=>{
+      if(node.nodeType===3){
+        const parts=String(node.nodeValue||'').split('\n');
+        parts.forEach((text,i)=>{
+          if(i)newline(style.align);
+          if(text)lines[lines.length-1].runs.push({text,style:{...style}});
+        });
+        return;
+      }
+      if(node.nodeType!==1)return;
+      if(node.tagName==='BR'){newline(style.align);return;}
+      const next=styled(node,style);
+      if(['DIV','P'].includes(node.tagName)&&lines[lines.length-1].runs.length)newline(next.align);
+      node.childNodes.forEach(child=>collect(child,next));
+    };
+    tpl.content.childNodes.forEach(node=>collect(node,base));
+    lines.forEach((line,i)=>{
+      const runs=line.runs.map(run=>{
+        ctx.font=_canvasTextFont(run.style);
+        return{...run,width:ctx.measureText(run.text).width};
+      });
+      const total=runs.reduce((sum,run)=>sum+run.width,0);
+      const align=line.align||d._lineAligns?.[i]||d.align||'left';
+      let x=align==='center'?(obj.width-total)/2:align==='right'?obj.width-total:0;
+      const y=i*lineHeight;
+      runs.forEach(run=>{
+        const style=run.style;
+        ctx.font=_canvasTextFont(style);
+        if(style.backgroundColor&&style.backgroundColor!=='transparent'){
+          ctx.fillStyle=style.backgroundColor;
+          ctx.fillRect(x,y,run.width,(style.lineHeight||d.lineHeight||1.2)*(style.fontSize||fontSize));
+        }
+        ctx.fillStyle=style.color||d.color||'#000';
+        ctx.fillText(run.text,x,y);
+        if(style.underline){
+          ctx.fillRect(x,y+(style.fontSize||fontSize)*.94,Math.max(1,run.width),Math.max(1,(style.fontSize||fontSize)*.05));
+        }
+        x+=run.width;
+      });
+    });
+    ctx.restore();
+    return true;
+  }
+  ctx.font=_canvasTextFont(d);
+  ctx.fillStyle=d.color||'#000';
   const source=String(d.content||'').split('\n'),rows=[];
   source.forEach((line,i)=>{
     const align=Array.isArray(d._lineAligns)?(d._lineAligns[i]||d.align):d.align;
@@ -1944,8 +2021,7 @@ class PDFParser{
     const items=tc.items.filter(i=>i.str&&i.str.trim());
     this._lastTextCount+=items.length;
     const fontDetails=this._fontDetails(page,tc.styles||{});
-    // Use black as default color for all text to avoid color detection issues
-    const colors=Array(items.length).fill('#000000');
+    const colors=this._extractTextColors(opList,items);
     const hasText=items.length>0;
     const textObjs=this._buildTextObjs(items,vp,pi,tc.styles||{},colors,fontDetails);
     let imageObjs=this._buildImageObjs(opList,vp,pi,hasText);
@@ -2070,13 +2146,23 @@ class PDFParser{
       const scaleY=Math.abs(it.transform[3]);
       const fs=Math.max(4*RENDER_SCALE,Math.max(scaleX,scaleY)*Math.abs(vp.transform[0]));
       const styleName=this._styleName(it,styles,fontHintsByName,fontDetails);
-      return{...it,_cx:cx,_cy:cy,_fs:fs,_angle:Math.atan2(b,it.transform[0])*180/Math.PI,_styleName:styleName,_styleKey:this._styleKey(styleName,fs),_color:colors[idx]||'#000000'};
+      const colorInfo=colors[idx]||{};
+      return{
+        ...it,
+        _cx:cx,_cy:cy,_fs:fs,
+        _angle:Math.atan2(b,it.transform[0])*180/Math.PI,
+        _styleName:styleName,
+        _styleKey:this._styleKey(styleName,fs),
+        _color:colorInfo.color||'#000000',
+        _charColors:Array.isArray(colorInfo.charColors)?colorInfo.charColors:null
+      };
     }).sort((a,b)=>a._cy-b._cy||a._cx-b._cx);
 
     const scale=Math.abs(vp.transform[0]);
     const segs=[];
     mapped.forEach((it,idx)=>{
       let cursorX=it._cx;
+      let sourceOffset=0;
       const itemWidth=(it.width||0)*scale;
       const measureCtx=_measureCtx||(_measureCtx=document.createElement('canvas').getContext('2d'));
       measureCtx.font=_canvasTextFont({fontFamily:this._font(it._styleName||it.fontName||''),fontSize:it._fs,fontWeight:this._bold(it._styleName||it.fontName||'')?'bold':'normal',fontStyle:this._italic(it._styleName||it.fontName||'')?'italic':'normal'});
@@ -2084,14 +2170,42 @@ class PDFParser{
       _measureTextPartWidths(measureCtx,it.str,correctedItemWidth).forEach((part,segIdx)=>{
         const leftTrim=(part.text.match(/^\s*/)||[''])[0].length;
         const rightTrim=(part.text.match(/\s*$/)||[''])[0].length;
-        const charW=part.text.length?part.width/part.text.length:0;
-        const content=part.text.trim();
-        if(content){
-          const x=cursorX+leftTrim*charW;
-          const width=Math.max(part.width-(leftTrim+rightTrim)*charW,it._fs*.35);
-          segs.push({...it,_segIdx:segIdx,_itemIdx:idx,_text:content,_x:x,_y:it._cy-it._fs*0.85,_width:width,_end:x+width});
+        const partColors=it._charColors?.slice(sourceOffset,sourceOffset+part.text.length);
+        const contentStart=leftTrim;
+        const contentEnd=Math.max(contentStart,part.text.length-rightTrim);
+        if(contentEnd>contentStart){
+          const measuredWidth=Math.max(0,measureCtx.measureText(part.text).width);
+          const widthFactor=measuredWidth>0?part.width/measuredWidth:0;
+          const positionFor=offset=>measuredWidth>0
+            ?measureCtx.measureText(part.text.slice(0,offset)).width*widthFactor
+            :part.width*(offset/Math.max(1,part.text.length));
+          const colorRuns=[];
+          for(let pos=contentStart;pos<contentEnd;pos++){
+            const color=partColors?.[pos]||it._color;
+            const last=colorRuns[colorRuns.length-1];
+            if(last&&last.color===color)last.end=pos+1;
+            else colorRuns.push({start:pos,end:pos+1,color});
+          }
+          colorRuns.forEach((run,runIdx)=>{
+            const text=part.text.slice(run.start,run.end);
+            if(!text)return;
+            const x=cursorX+positionFor(run.start);
+            const width=Math.max(positionFor(run.end)-positionFor(run.start),it._fs*.12);
+            segs.push({
+              ...it,
+              _segIdx:`${segIdx}_${runIdx}`,
+              _itemIdx:idx,
+              _text:text,
+              _color:run.color,
+              _x:x,
+              _y:it._cy-it._fs*0.85,
+              _width:width,
+              _end:x+width
+            });
+          });
         }
         cursorX+=part.width;
+        sourceOffset+=part.text.length;
       });
     });
 
@@ -2386,9 +2500,12 @@ class PDFParser{
     };
   }
 
-  _extractTextColors(opList,itemCount){
-    const out=[];
-    if(!opList||!window.pdfjsLib?.OPS)return Array(itemCount).fill('#000000');
+  _extractTextColors(opList,items){
+    const fallback=()=>items.map(item=>({
+      color:'#000000',
+      charColors:Array(String(item?.str||'').length).fill('#000000')
+    }));
+    if(!opList||!window.pdfjsLib?.OPS)return fallback();
     const OPS=window.pdfjsLib.OPS;
     let fill='#000000';
     const clamp=v=>Math.max(0,Math.min(255,Math.round(v)));
@@ -2411,37 +2528,53 @@ class PDFParser{
       c=Number(c)||0;m=Number(m)||0;y=Number(y)||0;k=Number(k)||0;
       return rgb(255*(1-c)*(1-k),255*(1-m)*(1-k),255*(1-y)*(1-k));
     };
-    
-    let textOpIndex=0;
-    for(let i=0;i<opList.fnArray.length&&textOpIndex<itemCount;i++){
+    const directColor=args=>{
+      const raw=args?.[0];
+      if(typeof raw==='string'&&/^#[0-9a-f]{6}$/i.test(raw))return raw.toLowerCase();
+      return null;
+    };
+    const glyphs=[];
+    const appendGlyphs=value=>{
+      if(Array.isArray(value)){value.forEach(appendGlyphs);return;}
+      if(value&&typeof value==='object'&&typeof value.unicode==='string'){
+        for(const ch of value.unicode)glyphs.push({ch,color:fill});
+      }
+    };
+
+    for(let i=0;i<opList.fnArray.length;i++){
       const fn=opList.fnArray[i],args=opList.argsArray[i]||[];
       if(fn===OPS.setFillRGBColor){
-        fill=rgb(norm(args[0]||0),norm(args[1]||0),norm(args[2]||0));
+        fill=directColor(args)||rgb(norm(args[0]||0),norm(args[1]||0),norm(args[2]||0));
       }
       else if(fn===OPS.setFillGray){
-        const v=norm(args[0]??0);
-        fill=rgb(v,v,v);
-      }
-      else if(fn===OPS.setFillCMYKColor){
-        fill=cmyk(args[0],args[1],args[2],args[3]);
-      }
-      else if(fn===OPS.setFillColorSpace){
-        // Handle color space changes - some PDFs set color space before color
-        const colorSpace=args[0];
-        if(colorSpace&&typeof colorSpace==='string'&&colorSpace.toLowerCase().includes('gray')){
-          // Grayscale color space
+        const direct=directColor(args);
+        if(direct)fill=direct;
+        else{
+          const v=norm(args[0]??0);
+          fill=rgb(v,v,v);
         }
       }
+      else if(fn===OPS.setFillCMYKColor){
+        fill=directColor(args)||cmyk(args[0],args[1],args[2],args[3]);
+      }
       else if(fn===OPS.showText||fn===OPS.showSpacedText||fn===OPS.nextLineShowText||fn===OPS.nextLineSetSpacingShowText){
-        out.push(fill);
-        textOpIndex++;
+        appendGlyphs(args);
       }
     }
-    
-    // Fill remaining with black if we didn't get enough colors
-    while(out.length<itemCount)out.push('#000000');
-    
-    return out;
+
+    const stream=glyphs.map(g=>g.ch).join('');
+    let cursor=0;
+    return items.map(item=>{
+      const text=String(item?.str||'');
+      const start=stream.indexOf(text,cursor);
+      if(start<0)return{color:'#000000',charColors:Array(text.length).fill('#000000')};
+      cursor=start+text.length;
+      const charColors=glyphs.slice(start,start+text.length).map(g=>g.color||'#000000');
+      const counts=new Map();
+      charColors.forEach(color=>counts.set(color,(counts.get(color)||0)+1));
+      const color=[...counts.entries()].sort((a,b)=>b[1]-a[1])[0]?.[0]||'#000000';
+      return{color,charColors};
+    });
   }
 
   _fontHintMap(items){
@@ -5997,12 +6130,30 @@ const app=(()=>{
 
     const baseEditWidth=obj.width;
     const baseEditHeight=obj.height;
+    let contentChanged=false;
+    const requiredEditorWidth=()=>{
+      let width=ta.scrollWidth;
+      try{
+        const range=document.createRange();
+        range.selectNodeContents(ta);
+        const contentRect=range.getBoundingClientRect();
+        const editorRect=ta.getBoundingClientRect();
+        width=Math.max(width,Math.ceil(contentRect.right-editorRect.left+2));
+      }catch{}
+      return width;
+    };
     const resize=()=>{
       if(isSingleLine){
         const minWidth=Math.round(baseEditWidth*sf+editPad.x+editPad.right);
         const currentWidth=parseFloat(ta.style.width)||minWidth;
-        const nextWidth=ta.scrollWidth>ta.clientWidth+2
-          ?Math.max(currentWidth,Math.ceil(ta.scrollWidth+2))
+        if(!contentChanged){
+          ta.style.height=Math.round(baseEditHeight*sf+editPad.y*2)+'px';
+          obj.height=baseEditHeight;
+          return;
+        }
+        const requiredWidth=requiredEditorWidth();
+        const nextWidth=requiredWidth>ta.clientWidth+1
+          ?Math.max(currentWidth,requiredWidth)
           :currentWidth;
         if(nextWidth>currentWidth){
           ta.style.width=nextWidth+'px';
@@ -6017,6 +6168,7 @@ const app=(()=>{
         obj.height=Math.max(baseEditHeight,(nextHeight-editPad.y*2)/sf);
       }
     };
+    ta._syncBoxToObject=resize;
     const syncEditVisual=()=>{
       const changed=obj.isOriginal?_originalTextChanged(obj):true;
       obj.dirty=obj.isOriginal?changed:true;
@@ -6027,6 +6179,7 @@ const app=(()=>{
     };
 
     ta.addEventListener('input',()=>{
+      contentChanged=true;
       resize();
       // Update data directly (no undo snapshot during live typing)
       obj.data.content=ta.value;
@@ -6098,6 +6251,7 @@ const app=(()=>{
     const pi=obj?obj.pageIndex:activePage;
     const before=_textEditStartSnap;
     const editorEl=_textEditorEl;
+    editorEl?._syncBoxToObject?.();
     _textEditorEl=null;
     _savedEditorRange=null;
     _editingTextId=null;

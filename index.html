@@ -19,7 +19,7 @@
         background: #f8fafc;
         color: #0f172a;
         font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        animation: pdfomni-boot-reveal 0s linear 450ms forwards;
+        animation: pdfomni-boot-reveal 0s linear 1200ms forwards;
       }
       .js-enabled[data-theme="dark"] .app-boot {
         background: #050817;
@@ -131,6 +131,7 @@
       type="font/woff2"
       crossorigin
     />
+    <script type="module" src="/src/main.jsx"></script>
   </head>
   <body>
     <div class="app-boot" aria-hidden="true">
@@ -141,6 +142,5 @@
       </div>
     </div>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

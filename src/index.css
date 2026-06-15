@@ -775,7 +775,8 @@ html[data-theme="dark"] .home-tool-controls {
 .home-category-tab {
   height: 40px;
   padding: 0 var(--space-4);
-  flex: 1 1 auto;
+  flex: 1 0 auto;
+  min-width: max-content;
   border: 1px solid var(--color-border);
   border-radius: 10px;
   background: var(--color-bg-tertiary);
@@ -783,6 +784,7 @@ html[data-theme="dark"] .home-tool-controls {
   font: inherit;
   font-size: var(--text-sm);
   font-weight: 600;
+  white-space: nowrap;
   cursor: pointer;
   transition: all var(--transition-fast);
 }
@@ -955,18 +957,19 @@ html[data-theme="dark"] .home-tool-search {
 }
 
 .home-featured-badges {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
-  justify-content: space-evenly;
-  flex-wrap: wrap;
-  gap: var(--space-6);
+  gap: var(--space-6) var(--space-5);
 }
 
 .home-featured-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 60px;
+  width: 100%;
+  min-width: 0;
+  height: 62px;
   max-width: 100%;
   text-decoration: none;
   transition: transform var(--transition-fast), filter var(--transition-fast);
@@ -983,10 +986,10 @@ html[data-theme="dark"] .home-featured-badge:hover {
 
 .home-featured-image {
   display: block;
-  width: 220px;
+  width: min(200px, 100%);
   max-width: 100%;
   height: 54px;
-  object-fit: fill;
+  object-fit: contain;
 }
 
 .home-featured-image-dark {
@@ -1003,6 +1006,64 @@ html[data-theme="dark"] .home-featured-image-dark {
 
 html[data-theme="dark"] .home-featured-image-adaptive {
   filter: invert(1) hue-rotate(180deg);
+}
+
+.home-active-users {
+  position: absolute;
+  top: -18px;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 13px;
+  border: 1px solid color-mix(in srgb, var(--color-accent) 15%, var(--color-border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg-elevated) 88%, transparent);
+  color: var(--color-accent);
+  box-shadow: var(--shadow-sm);
+  backdrop-filter: var(--glass-blur);
+}
+
+.home-active-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  border-radius: 50%;
+  background: var(--color-green);
+}
+
+.home-active-dot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border: 1px solid color-mix(in srgb, var(--color-green) 65%, transparent);
+  border-radius: inherit;
+  animation: active-user-pulse 1.8s ease-out infinite;
+}
+
+@keyframes active-user-pulse {
+  0% { transform: scale(.55); opacity: .9; }
+  75%, 100% { transform: scale(1.55); opacity: 0; }
+}
+
+.home-active-copy {
+  display: grid;
+  gap: 1px;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.home-active-copy strong {
+  color: var(--color-text-primary);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.home-active-copy small {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  white-space: nowrap;
 }
 
 .seo-grid {
@@ -2154,11 +2215,33 @@ html[data-theme="dark"] .footer-privacy {
 }
 
 .footer-inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-4);
+}
+
+.footer-summary {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.footer-end {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: var(--space-4);
+}
+
+.footer-signoff {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.footer-signoff svg {
+  color: #ef4444;
 }
 
 .footer-text {
@@ -2549,9 +2632,16 @@ html[data-theme="dark"] .footer-privacy {
   }
 
   .home-featured-image {
-    width: 164px;
+    width: min(164px, 100%);
     max-width: 100%;
     height: 44px;
+  }
+
+  .home-active-users {
+    position: static;
+    width: fit-content;
+    max-width: 100%;
+    margin: 0 auto var(--space-4);
   }
 
   .home-tool-controls {
@@ -2616,6 +2706,16 @@ html[data-theme="dark"] .footer-privacy {
 
   .tool-page {
     padding: var(--space-8) 0;
+  }
+
+  .footer-inner {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .footer-end {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
   .tool-page-header {

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Zap, Shield, Cpu, Sparkles, Search } from 'lucide-react'
+import { Zap, Shield, Cpu, Sparkles, Search, UsersRound } from 'lucide-react'
 import { toolCategories, getToolsByCategory } from '../config/tools'
 import Seo from '../components/Common/Seo'
 
@@ -9,6 +9,48 @@ const featureItems = [
   { icon: Zap, text: 'Instant', desc: 'WebAssembly speed' },
   { icon: Cpu, text: 'AI Powered', desc: 'Smart copilot' },
 ]
+
+function ActiveUsers() {
+  const [users, setUsers] = useState(10240)
+
+  useEffect(() => {
+    let cancelled = false
+
+    const update = async () => {
+      try {
+        const response = await fetch('/api/number')
+        if (!response.ok) throw new Error(`Active-user request failed with ${response.status}`)
+        const data = await response.json()
+        const nextUsers = Number(data.users)
+        if (!cancelled && Number.isFinite(nextUsers) && nextUsers >= 0) {
+          setUsers(nextUsers)
+        }
+      } catch {
+        // Keep the stable fallback when the Pages Function is unavailable locally.
+      }
+    }
+
+    const startupTimer = window.setTimeout(update, 1000)
+    const refreshTimer = window.setInterval(update, 120000)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(startupTimer)
+      window.clearInterval(refreshTimer)
+    }
+  }, [])
+
+  return (
+    <aside className="home-active-users" aria-label={`${users.toLocaleString()} active users right now`}>
+      <span className="home-active-dot" aria-hidden="true" />
+      <UsersRound size={23} aria-hidden="true" />
+      <span className="home-active-copy">
+        <strong>{users.toLocaleString()} Active Users</strong>
+        <small>Updates every 2 minutes</small>
+      </span>
+    </aside>
+  )
+}
 
 function ToolCard({ tool }) {
   const Icon = tool.icon
@@ -121,6 +163,7 @@ export default function Home() {
 
       <section className="hero home-hero bg-radial-glow" id="hero">
         <div className="container" style={{ position: 'relative', zIndex: 1 }}>
+          <ActiveUsers />
           <div className="animate-fade-in-up">
             <div className="badge badge-accent home-hero-badge">
               <Sparkles size={14} />
@@ -323,6 +366,58 @@ export default function Home() {
                 src="https://startupfa.me/badges/featured-badge.webp"
                 alt="PDFOmni - Featured on Startup Fame"
                 width="171"
+                height="54"
+                loading="lazy"
+                decoding="async"
+              />
+            </a>
+
+            <a
+              className="home-featured-badge"
+              href="https://twelve.tools"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                className="home-featured-image home-featured-image-light"
+                src="https://twelve.tools/badge1-light.svg"
+                alt="Featured on Twelve Tools"
+                width="200"
+                height="54"
+                loading="lazy"
+                decoding="async"
+              />
+              <img
+                className="home-featured-image home-featured-image-dark"
+                src="https://twelve.tools/badge1-dark.svg"
+                alt="Featured on Twelve Tools"
+                width="200"
+                height="54"
+                loading="lazy"
+                decoding="async"
+              />
+            </a>
+
+            <a
+              className="home-featured-badge"
+              href="https://wired.business"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                className="home-featured-image home-featured-image-light"
+                src="https://wired.business/badge2-light.svg"
+                alt="Featured on Wired Business"
+                width="200"
+                height="54"
+                loading="lazy"
+                decoding="async"
+              />
+              <img
+                className="home-featured-image home-featured-image-dark"
+                src="https://wired.business/badge2-dark.svg"
+                alt="Featured on Wired Business"
+                width="200"
                 height="54"
                 loading="lazy"
                 decoding="async"

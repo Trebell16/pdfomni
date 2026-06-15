@@ -26,30 +26,27 @@ export default function Footer() {
           ))}
         </div>
         <div className="footer-inner">
-          <div style={{ display: 'grid', gap: 'var(--space-2)' }}>
+          <div className="footer-summary">
             <div className="footer-text">
-              {'©'} {new Date().getFullYear()} PDFOmni - Free PDF Toolkit
+              &copy; {new Date().getFullYear()} PDFOmni - Free PDF Toolkit
             </div>
             <div className="footer-text">
               Built to deliver world-class local PDF processing, including true browser-based PDF stream editing for supported documents.
             </div>
-            <div className="footer-links" style={{ display: 'flex', gap: 'var(--space-4, 16px)', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="footer-links">
               <Link to="/privacy">Privacy Policy</Link>
               <Link to="/terms">Terms of Service</Link>
               <Link to="/contact">Contact</Link>
               <Link to="/about">About Us</Link>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div className="footer-end">
             <div className="footer-privacy">
               <Shield size={14} />
               <span>Zero-Knowledge Architecture</span>
             </div>
-            <span
-              className="footer-text"
-              style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-            >
-              Made with <Heart size={14} style={{ color: '#ef4444' }} /> by a broke boy
+            <span className="footer-text footer-signoff">
+              Made with <Heart size={14} aria-label="love" /> by a broke boy
             </span>
           </div>
         </div>

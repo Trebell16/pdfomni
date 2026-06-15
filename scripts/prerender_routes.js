@@ -221,6 +221,12 @@ const routePages = [
         <a href="https://www.foundrlist.com/product/pdfomni?utm_source=badge&amp;utm_medium=embed" rel="noopener">
           <img src="https://www.foundrlist.com/api/badge/pdfomni" alt="Featured on FoundrList" width="150" height="48" loading="lazy" decoding="async">
         </a>
+        <a href="https://twelve.tools" rel="noopener">
+          <img src="https://twelve.tools/badge1-light.svg" alt="Featured on Twelve Tools" width="200" height="54" loading="lazy" decoding="async">
+        </a>
+        <a href="https://wired.business" rel="noopener">
+          <img src="https://wired.business/badge2-light.svg" alt="Featured on Wired Business" width="200" height="54" loading="lazy" decoding="async">
+        </a>
       </p>
     `,
   },

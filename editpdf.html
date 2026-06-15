@@ -283,6 +283,17 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Inter',system-ui,s
 .editor-seo details{border-bottom:1px solid var(--border)}
 .editor-seo summary{padding:13px 0;cursor:pointer;font-weight:700;color:var(--text-primary)}
 .editor-seo details p{padding-bottom:13px}
+.editor-site-footer{width:min(1160px,100%);padding:34px 8px 26px;border-top:1px solid var(--border);color:var(--text-secondary)}
+.editor-footer-map{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:22px;padding-bottom:26px;margin-bottom:22px;border-bottom:1px solid var(--border)}
+.editor-footer-map nav{display:grid;align-content:start;gap:7px}
+.editor-footer-map h3{margin:0 0 4px;color:var(--text-primary);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+.editor-footer-map a,.editor-footer-links a{color:var(--text-secondary);font-size:12px;text-decoration:none}
+.editor-footer-map a:hover,.editor-footer-links a:hover{color:var(--accent)}
+.editor-footer-bottom{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:18px}
+.editor-footer-summary{display:grid;gap:8px;font-size:12px;line-height:1.5}
+.editor-footer-links{display:flex;align-items:center;flex-wrap:wrap;gap:14px}
+.editor-footer-end{display:flex;align-items:center;justify-content:flex-end;gap:14px;font-size:12px;white-space:nowrap}
+.editor-footer-privacy{padding:8px 12px;border:1px solid rgba(16,185,129,.25);border-radius:999px;background:rgba(16,185,129,.1);color:#059669;font-weight:700}
 
 /* ══ TOOLBOX ══ */
 #toolbox{position:absolute;left:14px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:4px;background:var(--bg-panel);border:1px solid var(--border);border-radius:var(--r3);padding:8px;box-shadow:var(--sh2);z-index:40}
@@ -476,6 +487,18 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Inter',system-ui,s
   .editor-seo-grid,
   .editor-seo ul{
     grid-template-columns:1fr;
+  }
+  .editor-footer-map{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .editor-footer-bottom{
+    grid-template-columns:1fr;
+    align-items:start;
+  }
+  .editor-footer-end{
+    justify-content:flex-start;
+    flex-wrap:wrap;
+    white-space:normal;
   }
   .editor-compare-row{
     grid-template-columns:minmax(112px,1.15fr) minmax(70px,.7fr) minmax(86px,.8fr);
@@ -729,6 +752,27 @@ html[data-theme="dark"] .color-rgb-input {
       <details><summary>Is PDFOmni an online PDF editor?</summary><p>Yes. It runs in the browser like an online PDF editor, but the supported document processing is designed to happen locally on your device.</p></details>
       <details><summary>Why does the editor show a ready message after upload?</summary><p>Large PDFs need time to load, detect editable content, and prepare page layers. The ready state helps avoid a laggy editing surface while that setup is still happening.</p></details>
     </section>
+    <footer class="editor-site-footer">
+      <div class="editor-footer-map" aria-label="PDF tool links">
+        <nav aria-label="Organize and optimize tools"><h3>Organize &amp; Optimize</h3><a href="/merge">Merge PDF</a><a href="/split">Split PDF</a><a href="/reorder">Reorder Pages</a><a href="/compress">Compress PDF</a><a href="/rotate">Rotate Pages</a><a href="/page-numbers">Page Numbers</a></nav>
+        <nav aria-label="Convert to PDF tools"><h3>Convert to PDF</h3><a href="/word-to-pdf">Word to PDF</a><a href="/excel-to-pdf">Excel to PDF</a><a href="/image-to-pdf">Image to PDF</a><a href="/html-to-pdf">HTML to PDF</a></nav>
+        <nav aria-label="Convert from PDF tools"><h3>Convert from PDF</h3><a href="/pdf-to-image">PDF to Image</a><a href="/pdf-to-text">PDF to Text</a></nav>
+        <nav aria-label="Edit and annotate tools"><h3>Edit &amp; Annotate</h3><a href="/edit-pdf">Edit PDF</a><a href="/watermark">Watermark PDF</a><a href="/redact">Redact PDF</a><a href="/crop">Crop PDF</a></nav>
+        <nav aria-label="Security tools"><h3>Security</h3><a href="/protect">Protect PDF</a><a href="/unlock">Unlock PDF</a><a href="/sign">Sign PDF</a></nav>
+        <nav aria-label="Advanced tools"><h3>Advanced</h3><a href="/batch">Batch Process</a><a href="/wcag-check">WCAG Checker</a><a href="/workflow">Workflow Builder</a></nav>
+      </div>
+      <div class="editor-footer-bottom">
+        <div class="editor-footer-summary">
+          <span>&copy; 2026 PDFOmni - Free PDF Toolkit</span>
+          <span>Built to deliver world-class local PDF processing, including true browser-based PDF stream editing for supported documents.</span>
+          <span class="editor-footer-links"><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/contact">Contact</a><a href="/about">About Us</a></span>
+        </div>
+        <div class="editor-footer-end">
+          <span class="editor-footer-privacy">Zero-Knowledge Architecture</span>
+          <span>Made with love by a broke boy</span>
+        </div>
+      </div>
+    </footer>
   </div>
 
   <div id="canvas-scroll" style="display:none"><div id="canvas-viewport"></div></div>
@@ -774,11 +818,52 @@ html[data-theme="dark"] .color-rgb-input {
 
 <script src="/lib/pdf-lib.min.js"></script>
 <script src="/lib/fontkit.umd.min.js"></script>
+<script>
+// Polyfill Map.prototype.getOrInsertComputed for Safari.
+// PDF.js 5.7.x uses this Stage-3 TC39 "Upsert" proposal method which is
+// supported in Chrome 134+ and Firefox 135+ but NOT in Safari (as of 18.x).
+// Without it every PDF.js call that touches PDFObjects (render, getTextContent,
+// getOperatorList, commonObjs.resolve …) throws:
+//   TypeError: this.#objs.getOrInsertComputed is not a function
+// This must execute synchronously BEFORE the PDF.js module is imported.
+// Flag so the module script knows whether polyfilling was needed.
+window.__mapUpsertPolyfilled=false;
+if(typeof Map.prototype.getOrInsertComputed!=='function'){
+  window.__mapUpsertPolyfilled=true;
+  Map.prototype.getOrInsertComputed=function(key,callbackFn){
+    if(this.has(key))return this.get(key);
+    var value=callbackFn(key);
+    this.set(key,value);
+    return value;
+  };
+}
+if(typeof Map.prototype.getOrInsert!=='function'){
+  window.__mapUpsertPolyfilled=true;
+  Map.prototype.getOrInsert=function(key,defaultValue){
+    if(this.has(key))return this.get(key);
+    this.set(key,defaultValue);
+    return defaultValue;
+  };
+}
+</script>
 <script type="module">
+import './map-upsert-polyfill.js';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 window.pdfjsLib = pdfjsLib;
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
+
+// Worker setup.
+// The `new URL(…, import.meta.url)` pattern is needed so Vite bundles the
+// worker file into dist/ for browsers that support getOrInsertComputed.
+// On Safari (≤ 18.x) which needed the polyfill, we use a separate worker copy
+// (public/pdf.worker.polyfilled.mjs) that has the Map polyfill prepended.
+// This ensures the Web Worker thread has the polyfill natively.
+const _defaultWorkerUrl = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
+if(window.__mapUpsertPolyfilled){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('/pdf.worker.polyfilled.mjs', window.location.href).toString();
+}else{
+  pdfjsLib.GlobalWorkerOptions.workerSrc = _defaultWorkerUrl;
+}
 
 let pdfOmniQpdfRunnerPromise = null;
 function toUint8Array(bytes) {
@@ -1210,7 +1295,15 @@ function _sampleTextColorFromCanvas(canvas,box){
   const w=Math.max(1,ex-sx),h=Math.max(1,ey-sy);
   
   let img;
-  try{img=ctx.getImageData(sx,sy,w,h).data;}catch(e){return'#000000';}
+  try{
+    img=ctx.getImageData(sx,sy,w,h).data;
+    // Safari guard: getImageData may return all zeros for oversized canvases
+    if(_isSafariWebKit&&img.length>0){
+      let hasNonZero=false;
+      for(let i=0;i<Math.min(img.length,100);i++){if(img[i]!==0){hasNonZero=true;break;}}
+      if(!hasNonZero)return'#000000';
+    }
+  }catch(e){return'#000000';}
   
   const bgColorStr = _sampleCanvasColor(canvas, box);
   const bgColor = _parseCssColor(bgColorStr) || [255, 255, 255];
@@ -1266,7 +1359,15 @@ function _sampleCanvasColor(source,r,avoidColor=null){
   const ex=clamp((r.x||0)+(r.width||1)+pad,0,canvas.width),ey=clamp((r.y||0)+(r.height||1)+pad,0,canvas.height);
   const w=Math.max(1,ex-sx),h=Math.max(1,ey-sy);
   let img;
-  try{img=ctx.getImageData(sx,sy,w,h).data;}catch(e){return'#ffffff';}
+  try{
+    img=ctx.getImageData(sx,sy,w,h).data;
+    // Safari guard: getImageData may return all zeros for oversized canvases
+    if(_isSafariWebKit&&img.length>0){
+      let hasNonZero=false;
+      for(let i=0;i<Math.min(img.length,100);i++){if(img[i]!==0){hasNonZero=true;break;}}
+      if(!hasNonZero)return'#ffffff';
+    }
+  }catch(e){return'#ffffff';}
   const avoid=_parseCssColor(avoidColor);
   // For small text, use smaller stride to ensure we sample actual text pixels
   const area=w*h;
@@ -1487,6 +1588,37 @@ function _uniformCanvasBg(source,r,avoidColor=null){
   }
   return tested>20&&matching/tested>.96?`#${bg.map(v=>Math.round(v).toString(16).padStart(2,'0')).join('')}`:null;
 }
+// Safari-safe fallback: when getImageData returns corrupt data (canvas
+// exceeded Safari's 16.7MP limit or putImageData buffer-bleeding bug),
+// erase the text area by sampling background colours from the border
+// strips around the text box and painting over with the dominant colour.
+function _safariEraseWithBorderSampling(ctx,sx,sy,w,h,source,fallbackBg){
+  const sCtx=source?.canvas?source:_canvas2d(source,true);
+  const canvas=sCtx?.canvas;
+  if(!canvas||!canvas.width){
+    ctx.save();ctx.fillStyle=fallbackBg||'#ffffff';ctx.fillRect(sx,sy,w,h);ctx.restore();
+    return;
+  }
+  // Sample a thin strip above the text box for background colour
+  const stripH=Math.max(1,Math.min(4,Math.floor(h*0.08)));
+  const stripY=Math.max(0,sy-stripH-1);
+  let bg=fallbackBg||'#ffffff';
+  try{
+    const strip=sCtx.getImageData(sx,stripY,Math.min(w,canvas.width-sx),stripH);
+    const sd=strip.data;
+    let rSum=0,gSum=0,bSum=0,cnt=0;
+    const stride=Math.max(1,Math.floor(sd.length/(4*60)));
+    for(let i=0;i<sd.length;i+=4*stride){
+      if(sd[i+3]<20)continue;
+      rSum+=sd[i];gSum+=sd[i+1];bSum+=sd[i+2];cnt++;
+    }
+    if(cnt>0){
+      const hex=v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0');
+      bg=`#${hex(rSum/cnt)}${hex(gSum/cnt)}${hex(bSum/cnt)}`;
+    }
+  }catch(e){/* keep fallbackBg */}
+  ctx.save();ctx.fillStyle=bg;ctx.fillRect(sx,sy,w,h);ctx.restore();
+}
 function _eraseOriginalTextGlyphs(ctx,obj,source,fastMode=false,sgInstance=null){
   const d=obj.data||{},box=d._originalBox||obj,style=d._originalStyle||d;
   const bg=_sampleCanvasColor(source||ctx,box,style.color||d.color);
@@ -1538,6 +1670,26 @@ function _eraseOriginalTextGlyphs(ctx,obj,source,fastMode=false,sgInstance=null)
     
   try {
     const sCtx = _canvas2d(source,true);
+    // Safari canvas readability guard: verify getImageData returns valid
+    // (non-zero) data before attempting the expensive pixel-level erasure.
+    // When a canvas exceeds Safari’s 16.7MP limit, getImageData silently
+    // returns all-zero buffers, causing the selective erasure to paint
+    // corrupt (black) masks — the root cause of whole-page rasterisation.
+    if(_isSafariWebKit){
+      try{
+        const testW=Math.min(4,w),testH=Math.min(4,h);
+        const testData=sCtx.getImageData(sx,sy,testW,testH);
+        let allZero=true;
+        for(let i=0;i<testData.data.length;i++){if(testData.data[i]!==0){allZero=false;break;}}
+        if(allZero&&source.width>0&&source.height>0){
+          _safariEraseWithBorderSampling(ctx,sx,sy,w,h,source,bg);
+          return;
+        }
+      }catch(e){
+        _safariEraseWithBorderSampling(ctx,sx,sy,w,h,source,bg);
+        return;
+      }
+    }
     const imgData = sCtx.getImageData(sx, sy, w, h);
     const data = imgData.data;
     
@@ -1992,6 +2144,9 @@ class PDFParser{
     ctx.clearRect(0,0,canvas.width,canvas.height);
     const task=page.render({canvasContext:ctx,viewport:vp});
     await task.promise;
+    // Wait for fonts to be fully loaded — critical for Safari where font
+    // injection by PDF.js may not be immediately visible in document.fonts
+    try{await document.fonts.ready;}catch(e){}
     // Capture fonts PDF.js just injected
     this._capturePageFonts(pi,page);
     this._fontsPrimed.add(pi);
@@ -2007,6 +2162,8 @@ class PDFParser{
       canvas.height=Math.max(1,Math.ceil(vp.height));
       await page.render({canvasContext:canvas.getContext('2d'),viewport:vp}).promise;
       canvas.width=0;canvas.height=0;
+      // Wait for fonts to be fully loaded (Safari needs this)
+      try{await document.fonts.ready;}catch(e){}
       this._capturePageFonts(pi,page);
       this._fontsPrimed.add(pi);
     }catch(e){
@@ -2090,10 +2247,21 @@ class PDFParser{
   }
 
   async extractObjects(pi){
+    const _diag = typeof window!=='undefined' && window.__mapUpsertPolyfilled;
+    if(_diag) console.log(`[DIAG] extractObjects page=${pi}, workerSrc=${pdfjsLib?.GlobalWorkerOptions?.workerSrc?.slice(-50)}`);
     const page=await this.getPage(pi);
     await this._primePageFonts(pi,page);
     const vp=page.getViewport({scale:RENDER_SCALE});
-    const tc=await page.getTextContent({includeMarkedContent:false});
+    if(_diag) console.log(`[DIAG] viewport OK, scale=${RENDER_SCALE}, w=${vp.width}, h=${vp.height}`);
+    // getTextContent is critical — wrap it so a failure still yields partial results
+    let tc;
+    try{
+      tc=await page.getTextContent({includeMarkedContent:false});
+      if(_diag) console.log(`[DIAG] getTextContent OK: ${tc.items?.length} items, ${Object.keys(tc.styles||{}).length} styles`);
+    }catch(e){
+      console.warn('[DIAG] getTextContent FAILED for page',pi,e);
+      tc={items:[],styles:{}};
+    }
     const anns=await page.getAnnotations().catch(e=>{
       console.warn('Annotation extraction unavailable for page',pi,e);
       return[];
@@ -2101,38 +2269,55 @@ class PDFParser{
     let opList=null;
     try{
       opList=await page.getOperatorList();
+      if(_diag) console.log(`[DIAG] getOperatorList OK: ${opList?.fnArray?.length} ops`);
     }catch(e){
+      if(_diag) console.warn('[DIAG] getOperatorList attempt 1 FAILED',e);
       await new Promise(r=>setTimeout(r,80));
-      try{opList=await page.getOperatorList();}
-      catch(retryError){console.warn('Image/style extraction unavailable for page',pi,retryError);}
+      try{opList=await page.getOperatorList();
+        if(_diag) console.log(`[DIAG] getOperatorList retry OK: ${opList?.fnArray?.length} ops`);
+      }
+      catch(retryError){console.warn('[DIAG] getOperatorList FAILED both attempts for page',pi,retryError);}
     }
-    this._capturePageFonts(pi,page,Object.keys(tc.styles||{}));
+    try{this._capturePageFonts(pi,page,Object.keys(tc.styles||{}));}
+    catch(e){console.warn('[DIAG] Font capture FAILED for page',pi,e);}
     const items=tc.items.filter(i=>i.str&&i.str.trim());
     this._lastTextCount+=items.length;
+    if(_diag) console.log(`[DIAG] Filtered text items: ${items.length} (from ${tc.items?.length})`);
     let fontDetails={};
     try{fontDetails=this._fontDetails(page,tc.styles||{});}
-    catch(e){console.warn('Detailed font extraction unavailable for page',pi,e);}
+    catch(e){console.warn('[DIAG] fontDetails FAILED for page',pi,e);}
     let colors=[];
     try{colors=this._extractTextColors(opList,items);}
-    catch(e){console.warn('Text color extraction unavailable for page',pi,e);}
+    catch(e){console.warn('[DIAG] extractTextColors FAILED for page',pi,e);}
     const hasText=items.length>0;
     let textObjs=[];
     try{
       textObjs=this._buildTextObjs(items,vp,pi,tc.styles||{},colors,fontDetails);
+      if(_diag) console.log(`[DIAG] _buildTextObjs OK: ${textObjs.length} objects`);
     }catch(e){
-      console.warn('Styled text extraction unavailable for page',pi,e);
-      textObjs=this._buildTextObjs(items,vp,pi,{},[],{});
+      console.warn('[DIAG] Styled _buildTextObjs FAILED for page',pi,e);
+      try{textObjs=this._buildTextObjs(items,vp,pi,{},[],{});
+        if(_diag) console.log(`[DIAG] Fallback _buildTextObjs OK: ${textObjs.length} objects`);
+      }
+      catch(e2){console.warn('[DIAG] Fallback _buildTextObjs ALSO FAILED for page',pi,e2);}
     }
     let imageObjs=[];
-    try{imageObjs=this._buildImageObjs(opList,vp,pi,hasText);}
-    catch(e){console.warn('Image extraction unavailable for page',pi,e);}
-    if(textObjs.length&&imageObjs.length){
-      imageObjs=this._filterTextImageOverlays(imageObjs,textObjs,vp);
+    try{imageObjs=this._buildImageObjs(opList,vp,pi,hasText);
+      if(_diag) console.log(`[DIAG] _buildImageObjs OK: ${imageObjs.length} objects`);
     }
+    catch(e){console.warn('[DIAG] Image extraction FAILED for page',pi,e);}
+    if(textObjs.length&&imageObjs.length){
+      try{imageObjs=this._filterTextImageOverlays(imageObjs,textObjs,vp);}
+      catch(e){console.warn('Text-image overlay filter unavailable for page',pi,e);}
+    }
+    let linkObjs=[];
+    try{linkObjs=this._buildLinkObjs(anns,vp,pi);}
+    catch(e){console.warn('Link extraction unavailable for page',pi,e);}
+    if(_diag) console.log(`[DIAG] extractObjects DONE page=${pi}: text=${textObjs.length} images=${imageObjs.length} links=${linkObjs.length}`);
     return{
       textObjs,
       imageObjs,
-      linkObjs:this._buildLinkObjs(anns,vp,pi),
+      linkObjs,
       textItemCount:items.length
     };
   }
@@ -3131,6 +3316,38 @@ class Exporter{
         return boxes.map(b=>({x:(b.x||0)-sx-2,y:(b.y||0)-sy-2,width:(b.width||1)+4,height:(b.height||1)+4}));
       });
     _eraseOriginalTextGlyphs(pctx,localObj,patch,false,null);
+    // Safari guard: verify the patch canvas produced valid pixel data.
+    // When canvas exceeds Safari’s size limits getImageData returns all
+    // zeros and toBlob/toDataURL produce corrupt output.  Fall back to a
+    // simple background rectangle so the export remains vector-based.
+    if(_isSafariWebKit){
+      try{
+        const td=pctx.getImageData(0,0,Math.min(4,sw),Math.min(4,sh));
+        let allZero=true;
+        for(let i=0;i<td.data.length;i++){if(td.data[i]!==0){allZero=false;break;}}
+        if(allZero&&sw>1&&sh>1){
+          const bgColor=_sampleCanvasBorderColor(srcCanvas,r);
+          const bgPad=Math.max(2,Math.min(10,Math.min(r.width||20,r.height||20)*.06))/RENDER_SCALE;
+          pdfPage.drawRectangle({
+            x:sx/RENDER_SCALE-bgPad,y:pageH-(sy+sh)/RENDER_SCALE-bgPad,
+            width:sw/RENDER_SCALE+bgPad*2,height:sh/RENDER_SCALE+bgPad*2,
+            color:this._pdfColor(bgColor)
+          });
+          patch.width=0;patch.height=0;
+          return;
+        }
+      }catch(e){
+        const bgColor=_sampleCanvasBorderColor(srcCanvas,r);
+        const bgPad=Math.max(2,Math.min(10,Math.min(r.width||20,r.height||20)*.06))/RENDER_SCALE;
+        pdfPage.drawRectangle({
+          x:sx/RENDER_SCALE-bgPad,y:pageH-(sy+sh)/RENDER_SCALE-bgPad,
+          width:sw/RENDER_SCALE+bgPad*2,height:sh/RENDER_SCALE+bgPad*2,
+          color:this._pdfColor(bgColor)
+        });
+        patch.width=0;patch.height=0;
+        return;
+      }
+    }
     const bytes=await this._canvasToPngBytes(patch);
     patch.width=0;patch.height=0;
     const img=await pdfDoc.embedPng(bytes);
@@ -3549,7 +3766,14 @@ class Exporter{
     if(!known)return /\b(g_[a-z0-9]+_f\d+)\b/i.test(raw);
     const bold=String(d.fontWeight||'').toLowerCase()==='bold'||Number(d.fontWeight)>=600;
     const italic=String(d.fontStyle||'').toLowerCase()==='italic';
-    return !(await this._pdfCustomFont(page,{...d,fontFamily:known,_originalFontName:known},bold,italic));
+    if(await this._pdfCustomFont(page,{...d,fontFamily:known,_originalFontName:known},bold,italic))return false;
+    // Even if custom font embedding failed (common on Safari due to stricter
+    // font sanitiser), check whether the text uses a standard PDF font that
+    // pdf-lib can embed natively.  This prevents Safari from rasterising text
+    // that uses common families like Helvetica / Times / Courier.
+    const standardFamily=this._standardExportFontFromData({...d,fontFamily:known});
+    if(standardFamily)return false;
+    return true;
   }
   async _pdfTextImage(page,box,d,pageH,opacity=1){
     const w=Math.max(1,Math.ceil(box.width||1)),h=Math.max(1,Math.ceil(box.height||1));
@@ -4427,7 +4651,11 @@ const app=(()=>{
   function _chooseRenderScale(pageCount,firstDim){
     let scale=pageCount>250?1.8:pageCount>100?2.4:4;
     const nativeArea=Math.max(1,(firstDim?.width||595)*(firstDim?.height||842));
-    const maxPixelsPerCanvas=5000000;
+    // Safari enforces a hard ~16.7MP canvas area limit (especially iOS).
+    // Each page uses 3 canvas layers (bgCanvas + textMask + overlayCanvas),
+    // so keep individual canvases well within the limit to avoid silent
+    // getImageData/toDataURL failures that cause whole-page rasterization.
+    const maxPixelsPerCanvas=_isSafariWebKit?(_isIOSWebKit?3500000:4500000):5000000;
     scale=Math.min(scale,Math.sqrt(maxPixelsPerCanvas/nativeArea));
     if(_isIOSWebKit)scale=Math.min(scale,2.5);
     else if(_isSafariWebKit)scale=Math.min(scale,3);
@@ -4652,8 +4880,13 @@ const app=(()=>{
       if(sw<2||sh<2)return;
       const c=document.createElement('canvas');c.width=sw;c.height=sh;
       c.getContext('2d').drawImage(cvs,sx,sy,sw,sh,0,0,sw,sh);
-      obj.data.src=c.toDataURL('image/png');
-      obj.data._originalSrc=obj.data.src;
+      const dataUrl=c.toDataURL('image/png');
+      // Safari guard: toDataURL returns empty/minimal data URL when canvas
+      // exceeds size limits — skip assignment to avoid corrupt image data
+      if(dataUrl&&dataUrl.length>100){
+        obj.data.src=dataUrl;
+        obj.data._originalSrc=dataUrl;
+      }
       c.width=0;c.height=0;
     });
     _detectOriginalTextUnderlines(pi,pw);

@@ -18,13 +18,38 @@ export default defineConfig(({ mode }) => {
     }
   }
 
+  function copyDirectory(source, target) {
+    if (!fs.existsSync(source)) return
+    fs.mkdirSync(target, { recursive: true })
+
+    for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
+      const sourcePath = path.join(source, entry.name)
+      const targetPath = path.join(target, entry.name)
+
+      if (entry.isDirectory()) {
+        copyDirectory(sourcePath, targetPath)
+      } else if (entry.isFile()) {
+        fs.copyFileSync(sourcePath, targetPath)
+      }
+    }
+  }
+
+  function copyCloudflareFunctions() {
+    const projectRoot = process.cwd()
+    const outputRoot = path.resolve(projectRoot, outDir)
+    if (!fs.existsSync(outputRoot)) return
+
+    copyDirectory(path.join(projectRoot, 'functions'), path.join(outputRoot, 'functions'))
+  }
+
   return {
   plugins: [
     react(),
     {
-      name: 'copy-google-verification-files',
+      name: 'copy-static-deploy-extras',
       closeBundle() {
         copyGoogleVerificationFiles()
+        copyCloudflareFunctions()
       },
     },
     {

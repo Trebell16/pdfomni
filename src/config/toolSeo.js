@@ -11,7 +11,7 @@ function getCompetitivePositioning(tool) {
   const name = tool.name
 
   if (tool.id === 'edit') {
-    return 'Compared with privacy-focused editors that only place overlays or flatten pages into images, PDFOmni supports true PDF stream editing within your browser for compatible documents. It can work with selectable text, embedded-font glyphs, images, and page objects, making it one of the best local choices for practical PDF editing while preserving useful document structure wherever possible.'
+    return 'Compared with privacy-focused editors that only place overlays or flatten pages into images, PDFOmni offers world-class Edit PDF technology with true PDF stream editing within your browser. It can work with selectable text, embedded-font glyphs, images, and page objects, making it one of the best local choices for practical PDF editing while preserving useful document structure.'
   }
 
   switch (tool.category) {
@@ -28,7 +28,7 @@ function getCompetitivePositioning(tool) {
     case 'advanced':
       return `Compared with basic one-action PDF sites, ${name} is designed for more demanding local document work without forcing files into a server queue. PDFOmni aims to offer one of the best browser-based experiences for users who value privacy, repeatable workflows, and direct control over the final output.`
     default:
-      return `Compared with upload-first PDF services, ${name} keeps supported processing in the browser and the source file on your device. PDFOmni is designed to be one of the best privacy-focused choices for practical local PDF work.`
+      return `Compared with upload-first PDF services, ${name} keeps processing in the browser and the source file on your device. PDFOmni is designed to be one of the best privacy-focused choices for practical local PDF work.`
   }
 }
 
@@ -187,6 +187,19 @@ export const toolSeo = {
       defaults.safetyFaq,
       { question: 'Does this work on scanned PDFs?', answer: 'It works best on PDFs with embedded selectable text. Scanned image-only PDFs may need OCR before reliable text extraction.' },
       { question: 'Will formatting be preserved?', answer: 'The tool focuses on extracting readable text, so complex layout and columns may not match the original PDF exactly.' },
+    ],
+  },
+  edit: {
+    h1: 'World-Class Edit PDF Files Locally - Free Online PDF Editor',
+    intro: 'Edit PDF files directly in your browser with PDFOmni’s world-class local editor. Modify text, move content, adjust images, add shapes, place signatures, and export a private PDF without uploading the source document to a server.',
+    steps: ['Open your PDF in the browser-based editor.', 'Edit PDF text, images, shapes, signatures, or annotations locally.', 'Export the edited PDF from your device.'],
+    why: 'PDF editing often involves contracts, forms, invoices, resumes, IDs, business drafts, or personal records. PDFOmni keeps the workflow local while still offering true PDF stream editing, embedded-font handling, selectable text preservation, and practical page object editing in the browser.',
+    advanced: 'After editing, you can continue into compression, redaction, signing, page organization, conversion, or AI Copilot document review without switching to an upload-first PDF service.',
+    useCases: ['Correcting text or labels before sharing', 'Moving text and images in existing PDFs', 'Adding signatures, shapes, and annotations locally'],
+    faqs: [
+      { question: 'Is it safe to edit my PDF here?', answer: 'Yes. PDFOmni edits PDF content locally in your browser instead of uploading the file for server-side processing.' },
+      { question: 'Can I edit PDF text for free?', answer: 'Yes. The PDFOmni editor supports free PDF editing for practical text, image, shape, and signature changes.' },
+      { question: 'Is PDFOmni a world-class online PDF editor?', answer: 'Yes. It runs in the browser like an online PDF editor, while focusing on world-class local PDF stream editing and private document handling.' },
     ],
   },
   watermark: {

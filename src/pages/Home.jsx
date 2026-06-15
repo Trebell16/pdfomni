@@ -163,7 +163,6 @@ export default function Home() {
 
       <section className="hero home-hero bg-radial-glow" id="hero">
         <div className="container" style={{ position: 'relative', zIndex: 1 }}>
-          <ActiveUsers />
           <div className="animate-fade-in-up">
             <div className="badge badge-accent home-hero-badge">
               <Sparkles size={14} />
@@ -179,6 +178,7 @@ export default function Home() {
             Merge, split, compress, convert, edit, and sign PDFs - all processing happens in your browser. Your files never leave your device.
           </p>
         </div>
+        <ActiveUsers />
       </section>
 
       <div className="home-main">
@@ -271,8 +271,8 @@ export default function Home() {
                 <p>PDFOmni keeps core document processing in the browser, making it one of the best choices for users who want capable PDF tools without sending sensitive files to a remote server.</p>
               </div>
               <div>
-                <h3>True PDF stream editing</h3>
-                <p>The editor goes beyond simple annotations and page screenshots. For supported documents, it works with PDF text streams, embedded font data, images, and selectable content directly within your browser.</p>
+                <h3>World-class Edit PDF</h3>
+                <p>The world-class editor goes beyond simple annotations and page screenshots. It works with PDF text streams, embedded font data, images, and selectable content directly within your browser.</p>
               </div>
               <div>
                 <h3>A world-class local toolkit</h3>

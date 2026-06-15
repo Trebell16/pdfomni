@@ -32,7 +32,7 @@ export default function AboutPage() {
           </p>
           <h2>A Higher Standard for Browser PDF Tools</h2>
           <p>
-            PDFOmni is being built to stand among the best privacy-focused PDF toolkits, not merely to repeat the same basic upload-and-download flow found elsewhere. Compared with many browser tools, the project invests in deeper local processing, including true PDF stream editing within your browser for supported documents, embedded-font handling, selectable text preservation, large-file workflows, and reusable document automation.
+            PDFOmni is being built to stand among the best privacy-focused PDF toolkits, not merely to repeat the same basic upload-and-download flow found elsewhere. Compared with many browser tools, the project invests in deeper local processing, including world-class Edit PDF technology, true PDF stream editing within your browser, embedded-font handling, selectable text preservation, large-file workflows, and reusable document automation.
           </p>
           <h2>What Comes Next</h2>
           <p>

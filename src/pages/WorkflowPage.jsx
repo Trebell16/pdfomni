@@ -1547,7 +1547,7 @@ export default function WorkflowPage() {
         <div>
           <h3>PDFOmni vs iLovePDF Workflows</h3>
           <p>
-            iLovePDF is a well-known online PDF service, and it can be convenient when a cloud workflow is acceptable. Its official pricing describes free use as limited document processing, with Premium offering unlimited processing and an ad-free experience. PDFOmni is aimed at a different need: private local workflows, no account requirement for the core tools, and browser-based processing for supported PDF actions.
+            iLovePDF is a well-known online PDF service, and it can be convenient when a cloud workflow is acceptable. Its official pricing describes free use as limited document processing, with Premium offering unlimited processing and an ad-free experience. PDFOmni is aimed at a different need: private local workflows, no account requirement for the core tools, and browser-based PDF processing.
           </p>
           <p>
             Choose PDFOmni when the priority is keeping files on your device, repeating common document steps, and reviewing the exported result yourself. Choose a cloud workflow when you specifically need server-side accounts, storage, team features, or processing that cannot reasonably happen in a browser.

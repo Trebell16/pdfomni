@@ -126,7 +126,7 @@ const tools = [
   {
     id: 'edit',
     name: 'Edit PDF',
-    description: 'Edit text and images directly',
+    description: 'World-class text and image editing',
     canonicalPath: '/edit-pdf',
     icon: Type,
     category: 'edit',

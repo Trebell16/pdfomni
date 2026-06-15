@@ -693,6 +693,7 @@ html[data-theme="dark"] .workflow-download-callout {
 }
 
 .home-hero {
+  position: relative;
   padding: var(--space-12) 0 var(--space-8);
 }
 
@@ -1010,8 +1011,9 @@ html[data-theme="dark"] .home-featured-image-adaptive {
 
 .home-active-users {
   position: absolute;
-  top: -18px;
-  right: 0;
+  top: var(--space-3);
+  right: var(--space-6);
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -2641,7 +2643,7 @@ html[data-theme="dark"] .footer-privacy {
     position: static;
     width: fit-content;
     max-width: 100%;
-    margin: 0 auto var(--space-4);
+    margin: var(--space-4) auto 0;
   }
 
   .home-tool-controls {

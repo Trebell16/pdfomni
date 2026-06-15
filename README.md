@@ -20,7 +20,7 @@ The site also includes prerendered route content, per-page metadata, canonical U
 
 ## Privacy model
 
-Core PDF processing is designed to happen locally in the browser. Selected files remain on the user's device while supported tools read, transform, preview, and export them.
+Core PDF processing is designed to happen locally in the browser. Selected files remain on the user's device while tools read, transform, preview, and export them.
 
 The AI Copilot is optional and different from the core PDF tools. It stores its settings locally, but when a user sends a chat request, the selected query and retrieved document context are sent to OpenRouter using the API key supplied by that user.
 

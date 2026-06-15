@@ -774,11 +774,52 @@ html[data-theme="dark"] .color-rgb-input {
 
 <script src="/lib/pdf-lib.min.js"></script>
 <script src="/lib/fontkit.umd.min.js"></script>
+<script>
+// Polyfill Map.prototype.getOrInsertComputed for Safari.
+// PDF.js 5.7.x uses this Stage-3 TC39 "Upsert" proposal method which is
+// supported in Chrome 134+ and Firefox 135+ but NOT in Safari (as of 18.x).
+// Without it every PDF.js call that touches PDFObjects (render, getTextContent,
+// getOperatorList, commonObjs.resolve …) throws:
+//   TypeError: this.#objs.getOrInsertComputed is not a function
+// This must execute synchronously BEFORE the PDF.js module is imported.
+// Flag so the module script knows whether polyfilling was needed.
+window.__mapUpsertPolyfilled=false;
+if(typeof Map.prototype.getOrInsertComputed!=='function'){
+  window.__mapUpsertPolyfilled=true;
+  Map.prototype.getOrInsertComputed=function(key,callbackFn){
+    if(this.has(key))return this.get(key);
+    var value=callbackFn(key);
+    this.set(key,value);
+    return value;
+  };
+}
+if(typeof Map.prototype.getOrInsert!=='function'){
+  window.__mapUpsertPolyfilled=true;
+  Map.prototype.getOrInsert=function(key,defaultValue){
+    if(this.has(key))return this.get(key);
+    this.set(key,defaultValue);
+    return defaultValue;
+  };
+}
+</script>
 <script type="module">
+import './map-upsert-polyfill.js';
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 window.pdfjsLib = pdfjsLib;
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
+
+// Worker setup.
+// The `new URL(…, import.meta.url)` pattern is needed so Vite bundles the
+// worker file into dist/ for browsers that support getOrInsertComputed.
+// On Safari (≤ 18.x) which needed the polyfill, we use a separate worker copy
+// (public/pdf.worker.polyfilled.mjs) that has the Map polyfill prepended.
+// This ensures the Web Worker thread has the polyfill natively.
+const _defaultWorkerUrl = new URL('pdfjs-dist/legacy/build/pdf.worker.min.mjs', import.meta.url).toString();
+if(window.__mapUpsertPolyfilled){
+  pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('/pdf.worker.polyfilled.mjs', window.location.href).toString();
+}else{
+  pdfjsLib.GlobalWorkerOptions.workerSrc = _defaultWorkerUrl;
+}
 
 let pdfOmniQpdfRunnerPromise = null;
 function toUint8Array(bytes) {
@@ -2162,10 +2203,21 @@ class PDFParser{
   }
 
   async extractObjects(pi){
+    const _diag = typeof window!=='undefined' && window.__mapUpsertPolyfilled;
+    if(_diag) console.log(`[DIAG] extractObjects page=${pi}, workerSrc=${pdfjsLib?.GlobalWorkerOptions?.workerSrc?.slice(-50)}`);
     const page=await this.getPage(pi);
     await this._primePageFonts(pi,page);
     const vp=page.getViewport({scale:RENDER_SCALE});
-    const tc=await page.getTextContent({includeMarkedContent:false});
+    if(_diag) console.log(`[DIAG] viewport OK, scale=${RENDER_SCALE}, w=${vp.width}, h=${vp.height}`);
+    // getTextContent is critical — wrap it so a failure still yields partial results
+    let tc;
+    try{
+      tc=await page.getTextContent({includeMarkedContent:false});
+      if(_diag) console.log(`[DIAG] getTextContent OK: ${tc.items?.length} items, ${Object.keys(tc.styles||{}).length} styles`);
+    }catch(e){
+      console.warn('[DIAG] getTextContent FAILED for page',pi,e);
+      tc={items:[],styles:{}};
+    }
     const anns=await page.getAnnotations().catch(e=>{
       console.warn('Annotation extraction unavailable for page',pi,e);
       return[];
@@ -2173,38 +2225,55 @@ class PDFParser{
     let opList=null;
     try{
       opList=await page.getOperatorList();
+      if(_diag) console.log(`[DIAG] getOperatorList OK: ${opList?.fnArray?.length} ops`);
     }catch(e){
+      if(_diag) console.warn('[DIAG] getOperatorList attempt 1 FAILED',e);
       await new Promise(r=>setTimeout(r,80));
-      try{opList=await page.getOperatorList();}
-      catch(retryError){console.warn('Image/style extraction unavailable for page',pi,retryError);}
+      try{opList=await page.getOperatorList();
+        if(_diag) console.log(`[DIAG] getOperatorList retry OK: ${opList?.fnArray?.length} ops`);
+      }
+      catch(retryError){console.warn('[DIAG] getOperatorList FAILED both attempts for page',pi,retryError);}
     }
-    this._capturePageFonts(pi,page,Object.keys(tc.styles||{}));
+    try{this._capturePageFonts(pi,page,Object.keys(tc.styles||{}));}
+    catch(e){console.warn('[DIAG] Font capture FAILED for page',pi,e);}
     const items=tc.items.filter(i=>i.str&&i.str.trim());
     this._lastTextCount+=items.length;
+    if(_diag) console.log(`[DIAG] Filtered text items: ${items.length} (from ${tc.items?.length})`);
     let fontDetails={};
     try{fontDetails=this._fontDetails(page,tc.styles||{});}
-    catch(e){console.warn('Detailed font extraction unavailable for page',pi,e);}
+    catch(e){console.warn('[DIAG] fontDetails FAILED for page',pi,e);}
     let colors=[];
     try{colors=this._extractTextColors(opList,items);}
-    catch(e){console.warn('Text color extraction unavailable for page',pi,e);}
+    catch(e){console.warn('[DIAG] extractTextColors FAILED for page',pi,e);}
     const hasText=items.length>0;
     let textObjs=[];
     try{
       textObjs=this._buildTextObjs(items,vp,pi,tc.styles||{},colors,fontDetails);
+      if(_diag) console.log(`[DIAG] _buildTextObjs OK: ${textObjs.length} objects`);
     }catch(e){
-      console.warn('Styled text extraction unavailable for page',pi,e);
-      textObjs=this._buildTextObjs(items,vp,pi,{},[],{});
+      console.warn('[DIAG] Styled _buildTextObjs FAILED for page',pi,e);
+      try{textObjs=this._buildTextObjs(items,vp,pi,{},[],{});
+        if(_diag) console.log(`[DIAG] Fallback _buildTextObjs OK: ${textObjs.length} objects`);
+      }
+      catch(e2){console.warn('[DIAG] Fallback _buildTextObjs ALSO FAILED for page',pi,e2);}
     }
     let imageObjs=[];
-    try{imageObjs=this._buildImageObjs(opList,vp,pi,hasText);}
-    catch(e){console.warn('Image extraction unavailable for page',pi,e);}
-    if(textObjs.length&&imageObjs.length){
-      imageObjs=this._filterTextImageOverlays(imageObjs,textObjs,vp);
+    try{imageObjs=this._buildImageObjs(opList,vp,pi,hasText);
+      if(_diag) console.log(`[DIAG] _buildImageObjs OK: ${imageObjs.length} objects`);
     }
+    catch(e){console.warn('[DIAG] Image extraction FAILED for page',pi,e);}
+    if(textObjs.length&&imageObjs.length){
+      try{imageObjs=this._filterTextImageOverlays(imageObjs,textObjs,vp);}
+      catch(e){console.warn('Text-image overlay filter unavailable for page',pi,e);}
+    }
+    let linkObjs=[];
+    try{linkObjs=this._buildLinkObjs(anns,vp,pi);}
+    catch(e){console.warn('Link extraction unavailable for page',pi,e);}
+    if(_diag) console.log(`[DIAG] extractObjects DONE page=${pi}: text=${textObjs.length} images=${imageObjs.length} links=${linkObjs.length}`);
     return{
       textObjs,
       imageObjs,
-      linkObjs:this._buildLinkObjs(anns,vp,pi),
+      linkObjs,
       textItemCount:items.length
     };
   }

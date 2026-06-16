@@ -3,12 +3,12 @@ PDFOmni protected build obfuscation report
 Obfuscated app-controlled files/chunks:
 - assets/app-ai-B1CHE4Cj.js
 - assets/app-core-ORs3c7xc.js
-- assets/app-engine-C7D8KJM3.js
-- assets/app-tools-DG66iAoY.js
-- assets/app-ui-DOo-tloP.js
-- assets/app-workflow-BcDEXer-.js
-- assets/editpdf-7tG22KM2.js
-- assets/main-DXqFRLWb.js
+- assets/app-engine-Coj6wRD9.js
+- assets/app-tools-CicUlCZM.js
+- assets/app-ui-D-FGFrZy.js
+- assets/app-workflow-CoVai9vr.js
+- assets/editpdf-Cp3R4poK.js
+- assets/main-DrYomNlN.js
 - assets/modulepreload-polyfill-Cf3xff8G.js
 - assets/qpdf-Cz4tslog.js
 - assets/worker-DvPKoZue.js
@@ -25,7 +25,7 @@ Obfuscated app-controlled files/chunks:
 Skipped public/vendor/runtime files:
 - assets/embeddingWorker-CGdUKviD.js
 - assets/rolldown-runtime-DzIHmmIB.js
-- assets/vendor-B_QzaOWR.js
+- assets/vendor-DDjb9O2z.js
 - compress/app/assets/lucide-react-BziyVGRa.js
 - compress/app/assets/rolldown-runtime-Bh1tDfsg.js
 - compress/app/assets/vendor-yLYiQVPu.js

@@ -123,7 +123,7 @@ for (const file of files) {
 const editPdfObfuscated = obfuscateEditPdfHtml(path.join(targetDir, 'editpdf.html'))
 if (editPdfObfuscated) obfuscatedPaths.push(path.join(targetDir, 'editpdf.html inline editor script'))
 
-const reportPath = path.join(targetDir, 'protected-obfuscation-report.txt')
+const reportPath = path.resolve('protected-obfuscation-report.txt')
 const relative = file => path.relative(targetDir, file).replace(/\\/g, '/')
 const report = [
   'PDFOmni protected build obfuscation report',

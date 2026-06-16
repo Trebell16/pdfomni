@@ -11,7 +11,7 @@ const featureItems = [
 ]
 
 function ActiveUsers() {
-  const [users, setUsers] = useState(10240)
+  const [users, setUsers] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -26,27 +26,40 @@ function ActiveUsers() {
           setUsers(nextUsers)
         }
       } catch {
-        // Keep the stable fallback when the Pages Function is unavailable locally.
+        // Keep the loading state when the live Pages Function is unavailable.
       }
     }
 
-    const startupTimer = window.setTimeout(update, 1000)
+    update()
     const refreshTimer = window.setInterval(update, 120000)
 
     return () => {
       cancelled = true
-      window.clearTimeout(startupTimer)
       window.clearInterval(refreshTimer)
     }
   }, [])
 
+  const hasUsers = Number.isFinite(users)
+
   return (
-    <aside className="home-active-users" aria-label={`${users.toLocaleString()} active users right now`}>
+    <aside
+      className={`home-active-users ${hasUsers ? '' : 'is-loading'}`}
+      aria-label={hasUsers ? `${users.toLocaleString()} active users right now` : 'Loading active users'}
+    >
       <span className="home-active-dot" aria-hidden="true" />
       <UsersRound size={23} aria-hidden="true" />
       <span className="home-active-copy">
-        <strong>{users.toLocaleString()} Active Users</strong>
-        <small>Updates every 2 minutes</small>
+        <strong>
+          {hasUsers ? (
+            <>{users.toLocaleString()} Active Users</>
+          ) : (
+            <>
+              <span className="home-active-skeleton" aria-hidden="true" />
+              <span>Active Users</span>
+            </>
+          )}
+        </strong>
+        <small>{hasUsers ? 'Updates every 2 minutes' : 'Fetching live count'}</small>
       </span>
     </aside>
   )

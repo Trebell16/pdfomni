@@ -1,0 +1,52 @@
+PDFOmni protected build obfuscation report
+
+Obfuscated app-controlled files/chunks:
+- assets/app-ai-B1CHE4Cj.js
+- assets/app-core-ORs3c7xc.js
+- assets/app-engine-BjMAHQv-.js
+- assets/app-tools-vCcNX45-.js
+- assets/app-ui-C9iZvvfx.js
+- assets/app-workflow-DO5iiVOp.js
+- assets/editpdf-Bj8OslUf.js
+- assets/main-IVpLIIpd.js
+- assets/modulepreload-polyfill-Cf3xff8G.js
+- assets/qpdf-Cz4tslog.js
+- assets/worker-DvPKoZue.js
+- compress/app/assets/browserRunner-CiRFPrNM.js
+- compress/app/assets/compressionWorker-MPMFb5sx.js
+- compress/app/assets/index-D_iDfQBH.js
+- compress/app/assets/qpdf-Cz4tslog.js
+- compress/app/assets/src-B7J2FNz7.js
+- compress/app/assets/worker-DvPKoZue.js
+- functions/api/number.js
+- _worker.js
+- editpdf.html inline editor script
+
+Skipped public/vendor/runtime files:
+- assets/embeddingWorker-CGdUKviD.js
+- assets/rolldown-runtime-DzIHmmIB.js
+- assets/vendor-CYY-4XZs.js
+- compress/app/assets/lucide-react-BziyVGRa.js
+- compress/app/assets/rolldown-runtime-Bh1tDfsg.js
+- compress/app/assets/vendor-yLYiQVPu.js
+- lib/fontkit.umd.min.js
+- lib/pdf-lib.min.js
+- lib/pdf.min.js
+- lib/pdf.worker.min.js
+- ocr/core/tesseract-core-lstm.js
+- ocr/core/tesseract-core-lstm.wasm.js
+- ocr/core/tesseract-core-relaxedsimd-lstm.js
+- ocr/core/tesseract-core-relaxedsimd-lstm.wasm.js
+- ocr/core/tesseract-core-relaxedsimd.js
+- ocr/core/tesseract-core-relaxedsimd.wasm.js
+- ocr/core/tesseract-core-simd-lstm.js
+- ocr/core/tesseract-core-simd-lstm.wasm.js
+- ocr/core/tesseract-core-simd.js
+- ocr/core/tesseract-core-simd.wasm.js
+- ocr/core/tesseract-core.js
+- ocr/core/tesseract-core.wasm.js
+- ocr/worker.min.js
+
+Notes:
+- Vendor libraries, PDF.js workers, icon bundles, and runtime chunks are intentionally skipped.
+- editpdf.html contains the standalone editor; its large inline editor script is obfuscated separately.

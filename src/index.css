@@ -1057,6 +1057,9 @@ html[data-theme="dark"] .home-featured-image-adaptive {
 }
 
 .home-active-copy strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   color: var(--color-text-primary);
   font-size: var(--text-xs);
   white-space: nowrap;
@@ -1066,6 +1069,37 @@ html[data-theme="dark"] .home-featured-image-adaptive {
   color: var(--color-text-muted);
   font-size: 10px;
   white-space: nowrap;
+}
+
+.home-active-skeleton {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--color-accent) 16%, var(--color-border));
+}
+
+.home-active-skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.74), transparent);
+  animation: active-user-shimmer 1.2s ease-in-out infinite;
+}
+
+html[data-theme="dark"] .home-active-skeleton::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.28), transparent);
+}
+
+.home-active-users.is-loading .home-active-dot {
+  background: var(--color-accent);
+}
+
+@keyframes active-user-shimmer {
+  to { transform: translateX(100%); }
 }
 
 .seo-grid {

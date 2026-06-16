@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && npm run build --prefix compress_pdf && node scripts/prerender_routes.js dist && node scripts/verify_prerender_routes.js dist && node generate_manifest.js",
-    "build:protected": "vite build --mode protected && npm run build:protected --prefix compress_pdf && node scripts/obfuscate_build.js obfuscated_dist && node scripts/prerender_routes.js obfuscated_dist && node scripts/verify_prerender_routes.js obfuscated_dist && node generate_manifest.js obfuscated_dist Cloudflare.obfuscated.txt obfuscated_dist.zip",
+    "build:protected": "vite build --mode protected && npm run build:protected --prefix compress_pdf && node scripts/obfuscate_build.js obfuscated_dist && node scripts/prerender_routes.js obfuscated_dist && node scripts/verify_prerender_routes.js obfuscated_dist && node generate_manifest.js obfuscated_dist Cloudflare.obfuscated.txt",
     "postinstall": "npm install --prefix compress_pdf",
     "lint": "eslint .",
     "preview": "vite preview"

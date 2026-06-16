@@ -1059,7 +1059,7 @@ html[data-theme="dark"] .home-featured-image-adaptive {
 .home-active-copy strong {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 3px;
   color: var(--color-text-primary);
   font-size: var(--text-xs);
   white-space: nowrap;
@@ -1069,6 +1069,29 @@ html[data-theme="dark"] .home-featured-image-adaptive {
   color: var(--color-text-muted);
   font-size: 10px;
   white-space: nowrap;
+}
+
+.home-active-number {
+  display: inline-block;
+  min-width: 4.2ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  will-change: transform, filter, opacity;
+}
+
+.home-active-label {
+  margin-left: 0;
+}
+
+.home-active-users.is-spinning .home-active-number {
+  animation: active-user-slot-spin 160ms linear infinite;
+}
+
+@keyframes active-user-slot-spin {
+  0% { transform: translateY(-9%); filter: blur(.5px); opacity: .78; }
+  50% { transform: translateY(7%); filter: blur(1px); opacity: 1; }
+  100% { transform: translateY(0); filter: blur(0); opacity: .9; }
 }
 
 .home-active-skeleton {

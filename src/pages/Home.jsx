@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Zap, Shield, Cpu, Sparkles, Search, UsersRound } from 'lucide-react'
 import { toolCategories, getToolsByCategory } from '../config/tools'
@@ -10,19 +10,31 @@ const featureItems = [
   { icon: Cpu, text: 'AI Powered', desc: 'Smart copilot' },
 ]
 
+const ACTIVE_USER_REFRESH_MS = 120000
+const ACTIVE_USER_ANIMATION_MS = 900
+
 function ActiveUsers() {
   const [users, setUsers] = useState(null)
+  const [displayUsers, setDisplayUsers] = useState(null)
+  const [isSpinning, setIsSpinning] = useState(false)
+  const latestRequestRef = useRef(0)
+  const displayUsersRef = useRef(null)
+  const animationFrameRef = useRef(null)
 
   useEffect(() => {
     let cancelled = false
 
     const update = async () => {
+      latestRequestRef.current += 1
+      const requestId = latestRequestRef.current
+
       try {
-        const response = await fetch('/api/number')
+        const cacheBucket = Math.floor(Date.now() / ACTIVE_USER_REFRESH_MS)
+        const response = await fetch(`/api/number?bucket=${cacheBucket}`, { cache: 'no-store' })
         if (!response.ok) throw new Error(`Active-user request failed with ${response.status}`)
         const data = await response.json()
         const nextUsers = Number(data.users)
-        if (!cancelled && Number.isFinite(nextUsers) && nextUsers >= 0) {
+        if (!cancelled && latestRequestRef.current === requestId && Number.isFinite(nextUsers) && nextUsers >= 0) {
           setUsers(nextUsers)
         }
       } catch {
@@ -30,28 +42,95 @@ function ActiveUsers() {
       }
     }
 
+    const updateWhenVisible = () => {
+      if (document.visibilityState !== 'hidden') update()
+    }
+
     update()
-    const refreshTimer = window.setInterval(update, 120000)
+    const refreshTimer = window.setInterval(updateWhenVisible, ACTIVE_USER_REFRESH_MS)
+    document.addEventListener('visibilitychange', updateWhenVisible)
+    window.addEventListener('focus', update)
+    window.addEventListener('online', update)
+    window.addEventListener('pageshow', update)
 
     return () => {
       cancelled = true
       window.clearInterval(refreshTimer)
+      document.removeEventListener('visibilitychange', updateWhenVisible)
+      window.removeEventListener('focus', update)
+      window.removeEventListener('online', update)
+      window.removeEventListener('pageshow', update)
     }
   }, [])
 
-  const hasUsers = Number.isFinite(users)
+  useEffect(() => {
+    if (!Number.isFinite(users)) return
+
+    if (animationFrameRef.current) {
+      window.cancelAnimationFrame(animationFrameRef.current)
+    }
+
+    const previousValue = displayUsersRef.current
+    if (!Number.isFinite(previousValue)) {
+      displayUsersRef.current = users
+      setDisplayUsers(users)
+      setIsSpinning(false)
+      return
+    }
+
+    const startValue = previousValue
+    if (startValue === users) {
+      setIsSpinning(false)
+      return
+    }
+
+    const startedAt = performance.now()
+    displayUsersRef.current = startValue
+    setDisplayUsers(startValue)
+    setIsSpinning(true)
+
+    const tick = now => {
+      const progress = Math.min(1, (now - startedAt) / ACTIVE_USER_ANIMATION_MS)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      const nextValue = Math.round(startValue + (users - startValue) * eased)
+
+      displayUsersRef.current = nextValue
+      setDisplayUsers(nextValue)
+
+      if (progress < 1) {
+        animationFrameRef.current = window.requestAnimationFrame(tick)
+      } else {
+        displayUsersRef.current = users
+        setDisplayUsers(users)
+        setIsSpinning(false)
+      }
+    }
+
+    animationFrameRef.current = window.requestAnimationFrame(tick)
+
+    return () => {
+      if (animationFrameRef.current) {
+        window.cancelAnimationFrame(animationFrameRef.current)
+      }
+    }
+  }, [users])
+
+  const hasUsers = Number.isFinite(displayUsers)
 
   return (
     <aside
-      className={`home-active-users ${hasUsers ? '' : 'is-loading'}`}
-      aria-label={hasUsers ? `${users.toLocaleString()} active users right now` : 'Loading active users'}
+      className={`home-active-users ${hasUsers ? '' : 'is-loading'} ${isSpinning ? 'is-spinning' : ''}`}
+      aria-label={Number.isFinite(users) ? `${users.toLocaleString()} active users right now` : 'Loading active users'}
     >
       <span className="home-active-dot" aria-hidden="true" />
       <UsersRound size={23} aria-hidden="true" />
       <span className="home-active-copy">
         <strong>
           {hasUsers ? (
-            <>{users.toLocaleString()} Active Users</>
+            <>
+              <span className="home-active-number">{displayUsers.toLocaleString()}</span>
+              <span className="home-active-label">Active Users</span>
+            </>
           ) : (
             <>
               <span className="home-active-skeleton" aria-hidden="true" />

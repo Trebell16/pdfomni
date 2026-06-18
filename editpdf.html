@@ -1644,10 +1644,10 @@ function _eraseOriginalTextGlyphs(ctx,obj,source,fastMode=false,sgInstance=null)
   const fontSize=Number(style.fontSize||d.fontSize||12);
   const tightErase=d._erasingLineBox||fontSize<=10*RENDER_SCALE||(box.height||0)<=fontSize*1.12;
   const padX=tightErase
-    ?Math.max(1,Math.min(3,Math.ceil(fontSize*0.08)))
+    ?Math.max(2,Math.min(4,Math.ceil(fontSize*0.12)))
     :Math.max(2,Math.min(10,Math.ceil(fontSize*0.18)));
   const padY=tightErase
-    ?Math.max(1,Math.min(2,Math.ceil(fontSize*0.04)))
+    ?Math.max(2,Math.min(4,Math.ceil(fontSize*0.15)))
     :Math.max(1,Math.min(6,Math.ceil(fontSize*0.1)));
   d._erasePadding={x:padX,y:padY};
   
@@ -2013,6 +2013,34 @@ class SceneGraph{
 }
 
 // ── PDF PARSER (streaming + File System Access) ────────────────────
+// Some PDFs without a ToUnicode map expose Adobe Symbol bytes in the private
+// use area. Translate those bytes before they enter the editable text model.
+const _ADOBE_SYMBOL_LETTERS={
+  A:'\u0391',B:'\u0392',C:'\u03a7',D:'\u0394',E:'\u0395',F:'\u03a6',G:'\u0393',H:'\u0397',I:'\u0399',J:'\u03d1',K:'\u039a',L:'\u039b',M:'\u039c',N:'\u039d',O:'\u039f',P:'\u03a0',Q:'\u0398',R:'\u03a1',S:'\u03a3',T:'\u03a4',U:'\u03a5',V:'\u03c2',W:'\u03a9',X:'\u039e',Y:'\u03a8',Z:'\u0396',
+  a:'\u03b1',b:'\u03b2',c:'\u03c7',d:'\u03b4',e:'\u03b5',f:'\u03c6',g:'\u03b3',h:'\u03b7',i:'\u03b9',j:'\u03d5',k:'\u03ba',l:'\u03bb',m:'\u03bc',n:'\u03bd',o:'\u03bf',p:'\u03c0',q:'\u03b8',r:'\u03c1',s:'\u03c3',t:'\u03c4',u:'\u03c5',v:'\u03d6',w:'\u03c9',x:'\u03be',y:'\u03c8',z:'\u03b6'
+};
+const _ADOBE_SYMBOL_SPECIAL={
+  0x22:'\u2200',0x24:'\u2203',0x27:'\u220b',0x2a:'\u2217',0x2d:'\u2212',0x40:'\u2245',0x5c:'\u2234',0x5e:'\u22a5',0x7e:'\u223c',
+  0xa0:'\u20ac',0xa1:'\u03d2',0xa2:'\u2032',0xa3:'\u2264',0xa4:'\u2044',0xa5:'\u221e',0xa6:'\u0192',0xa7:'\u2663',0xa8:'\u2666',0xa9:'\u2665',0xaa:'\u2660',
+  0xab:'\u2194',0xac:'\u2190',0xad:'\u2191',0xae:'\u2192',0xaf:'\u2193',0xb0:'\u00b0',0xb1:'\u00b1',0xb2:'\u2033',0xb3:'\u2265',0xb4:'\u00d7',0xb5:'\u221d',0xb6:'\u2202',0xb7:'\u2022',0xb8:'\u00f7',0xb9:'\u2260',0xba:'\u2261',0xbb:'\u2248',0xbc:'\u2026',0xbf:'\u21b5',
+  0xc0:'\u2135',0xc1:'\u2111',0xc2:'\u211c',0xc3:'\u2118',0xc4:'\u2297',0xc5:'\u2295',0xc6:'\u2205',0xc7:'\u2229',0xc8:'\u222a',0xc9:'\u2283',0xca:'\u2287',0xcb:'\u2284',0xcc:'\u2282',0xcd:'\u2286',0xce:'\u2208',0xcf:'\u2209',0xd0:'\u2220',0xd1:'\u2207',0xd5:'\u220f',0xd6:'\u221a',0xd7:'\u22c5',0xd8:'\u00ac',0xd9:'\u2227',0xda:'\u2228',0xdb:'\u21d4',0xdc:'\u21d0',0xdd:'\u21d1',0xde:'\u21d2',0xdf:'\u21d3',0xe0:'\u25ca',0xe1:'\u2329',0xe5:'\u2211',0xf1:'\u232a',0xf2:'\u222b',0xf3:'\u2320',0xf5:'\u2321'
+};
+function _normalizeAdobeSymbolText(value,fontName){
+  const text=String(value||'');
+  if(!/symbol/i.test(String(fontName||''))||!/[\uf000-\uf0ff]/i.test(text))return{text,changed:false};
+  let changed=false;
+  const normalized=Array.from(text,ch=>{
+    const cp=ch.codePointAt(0);
+    if(cp<0xf000||cp>0xf0ff)return ch;
+    const byte=cp-0xf000,ascii=String.fromCharCode(byte);
+    const mapped=_ADOBE_SYMBOL_LETTERS[ascii]||_ADOBE_SYMBOL_SPECIAL[byte]||((byte>=0x20&&byte<=0x7e)?ascii:null);
+    if(!mapped)return ch;
+    changed=true;
+    return mapped;
+  }).join('');
+  return{text:normalized,changed};
+}
+
 class PDFParser{
   constructor(){this.pdfDoc=null;this.pageCount=0;this._pageCache=new Map();this._fileHandle=null;this._bytes=null;this._fontHints=[];this._lastTextCount=0;this._pdfLibGenerated=false;this._fontsPrimed=new Set();}
 
@@ -2458,13 +2486,16 @@ class PDFParser{
       const scaleY=Math.abs(it.transform[3]);
       const fs=Math.max(4*RENDER_SCALE,Math.max(scaleX,scaleY)*Math.abs(vp.transform[0]));
       const styleName=this._styleName(it,styles,fontHintsByName,fontDetails);
+      const normalizedText=_normalizeAdobeSymbolText(it.str,styleName);
       const colorInfo=colors[idx]||{};
       return{
         ...it,
+        str:normalizedText.text,
         _cx:cx,_cy:cy,_fs:fs,
         _angle:Math.atan2(b,it.transform[0])*180/Math.PI,
         _styleName:styleName,
         _styleKey:this._styleKey(styleName,fs),
+        _symbolNormalized:normalizedText.changed,
         _color:colorInfo.color||'#000000',
         _charColors:Array.isArray(colorInfo.charColors)?colorInfo.charColors:null
       };
@@ -2742,8 +2773,8 @@ class PDFParser{
     content=content.replace(/\s+/g,' ').trim();
     html=_cleanTextHtml(`<div>${html.trim()}</div>`);
     const box={x,y,width:objW,height:objH,rotation:Math.round(first._angle)};
-    const fittedFontSize=_roundNum(_fitCanvasFontSize({...base,lineHeight:1.2},content,box),2);
-    const originalStyle={fontFamily:base.fontFamily,fontSize:fittedFontSize,fontWeight:'normal',fontStyle:'normal',color:base.color,backgroundColor:'transparent',underline:false,align:'left',lineHeight:1.2,letterSpacing:0,wordSpacing:0};
+    const originalFontSize=_roundNum(fs,2);
+    const originalStyle={fontFamily:base.fontFamily,fontSize:originalFontSize,fontWeight:'normal',fontStyle:'normal',color:base.color,backgroundColor:'transparent',underline:false,align:'left',lineHeight:1.2,letterSpacing:0,wordSpacing:0};
     return{
       id:uid(),type:OT.TEXT,pageIndex:pi,
       x,y,width:objW,height:objH,
@@ -2752,7 +2783,7 @@ class PDFParser{
       data:{
         content,
         html,
-        fontFamily:base.fontFamily,fontSize:fittedFontSize,
+        fontFamily:base.fontFamily,fontSize:originalFontSize,
         fontWeight:'normal',fontStyle:'normal',
         color:base.color,backgroundColor:'transparent',underline:false,align:'left',lineHeight:1.2,letterSpacing:0,wordSpacing:0,
         _originalContent:content,
@@ -2761,6 +2792,7 @@ class PDFParser{
         _originalBox:box,
         _originalFontName:first._styleName||first.fontName||'',
         _pdfFontKey:first.fontName,  // Raw PDF font key for lookup
+        _symbolNormalized:cluster.some(seg=>seg._symbolNormalized),
         _lineBoxes:[{x,y,width:contentW,height:objH}],
         _lineAligns:['left'],
         _singleLine:true,
@@ -2794,7 +2826,7 @@ class PDFParser{
     });
     content=content.replace(/\s+/g,' ').trim();
     const box={x,y,width:objW,height:objH,rotation:Math.round(first._angle)};
-    fontSize=_roundNum(_fitCanvasFontSize({fontFamily,fontSize,fontWeight,fontStyle,lineHeight:1.2},content,box),2);
+    fontSize=_roundNum(fs,2);
     const originalStyle={fontFamily,fontSize,fontWeight,fontStyle,color,backgroundColor:'transparent',underline:false,align:'left',lineHeight:1.2,letterSpacing:0,wordSpacing:0};
     return{
       id:uid(),type:OT.TEXT,pageIndex:pi,
@@ -2811,6 +2843,7 @@ class PDFParser{
         _originalBox:box,
         _originalFontName:styleName,
         _pdfFontKey:first.fontName,  // Raw PDF font key for lookup
+        _symbolNormalized:run.some(seg=>seg._symbolNormalized),
         _lineBoxes:[{x,y,width:contentW,height:objH}],
         _lineAligns:['left'],
         _singleLine:true,
@@ -2938,6 +2971,7 @@ class PDFParser{
   _vpt(px,py,vp){const[a,b,c,d,e,f]=vp.transform;return[a*px+c*py+e, b*px+d*py+f];}
   _font(n){
     const l=String(n||'').toLowerCase();
+    if(/symbol/.test(l))return'"Cambria Math","STIX Two Math","Segoe UI Symbol",serif';
     
     // Step 1: Check for PDF.js loadedName pattern (e.g., g_d0_f3)
     const loadedNameMatch=String(n||'').match(/\b(g_[a-z0-9]+_f\d+)\b/i);
@@ -4405,6 +4439,7 @@ const app=(()=>{
     const objsByFont=new Map();
     
     for(const obj of textObjs){
+      if(obj.data?._symbolNormalized)continue;
       const embeddedFace=String(obj.data.fontFamily||obj.data._originalStyle?.fontFamily||'').match(/\b(g_[a-z0-9]+_f\d+)\b/i)?.[1];
       if(embeddedFace){
         try{
@@ -4514,6 +4549,7 @@ const app=(()=>{
   function _applyEmbeddedFontChains(textObjs,pi,captureOriginal=false){
     for(const obj of textObjs){
       if(obj?.type!==OT.TEXT||!obj.data)continue;
+      if(obj.data._symbolNormalized)continue;
       const current=String(obj.data.fontFamily||'');
       const chain=parser.getEmbeddedFontFamilyChain(pi,obj.data._pdfFontKey);
       if(chain&&(captureOriginal||/\bg_[a-z0-9]+_f\d+\b/i.test(current))){
@@ -6511,14 +6547,7 @@ const app=(()=>{
   }
   function _editCanvasFontSize(obj){
     const d=obj?.data||{},raw=d.fontSize||12;
-    if(!obj?.isOriginal)return raw;
-    const content=d.content||'';
-    const lines=Math.max(1,String(content).split('\n').length);
-    const lineHeight=Math.max(.1,d.lineHeight||1.2);
-    const widthBonus=Math.max(12,raw*.45);
-    const byBox=(obj.height||raw*lineHeight)/(lineHeight*lines);
-    const fitted=_fitCanvasFontSize({...d,fontSize:raw},content,{width:(obj.width||1)+widthBonus,height:obj.height||raw*lineHeight});
-    return Math.max(4,Math.min(raw,fitted,byBox*.98));
+    return raw;
   }
 
   function _escapeHtml(s){

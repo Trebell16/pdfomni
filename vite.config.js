@@ -42,6 +42,14 @@ export default defineConfig(({ mode }) => {
     copyDirectory(path.join(projectRoot, 'functions'), path.join(outputRoot, 'functions'))
   }
 
+  function copyPdfJsWasm() {
+    const projectRoot = process.cwd()
+    copyDirectory(
+      path.join(projectRoot, 'node_modules', 'pdfjs-dist', 'wasm'),
+      path.join(projectRoot, outDir, 'pdfjs-wasm'),
+    )
+  }
+
   return {
   plugins: [
     react(),
@@ -50,6 +58,7 @@ export default defineConfig(({ mode }) => {
       closeBundle() {
         copyGoogleVerificationFiles()
         copyCloudflareFunctions()
+        copyPdfJsWasm()
       },
     },
     {
@@ -57,6 +66,15 @@ export default defineConfig(({ mode }) => {
       configureServer(server) {
         server.middlewares.use((req, res, next) => {
           const url = req.url.split('?')[0]; // strip query params
+          if (url.startsWith('/pdfjs-wasm/')) {
+            const fileName = path.basename(url)
+            const filePath = path.resolve('node_modules/pdfjs-dist/wasm', fileName)
+            if (fs.existsSync(filePath) && fs.statSync(filePath).isFile()) {
+              res.setHeader('Content-Type', path.extname(filePath) === '.wasm' ? 'application/wasm' : 'application/javascript')
+              res.end(fs.readFileSync(filePath))
+              return
+            }
+          }
           if (url.startsWith('/compress')) {
             let relativePath = url.replace(/^\/compress/, '');
             if (relativePath === '/' || relativePath === '') {

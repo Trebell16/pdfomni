@@ -864,6 +864,7 @@ if(window.__mapUpsertPolyfilled){
 }else{
   pdfjsLib.GlobalWorkerOptions.workerSrc = _defaultWorkerUrl;
 }
+window.pdfJsWasmUrl = new URL('/pdfjs-wasm/', window.location.href).toString();
 
 let pdfOmniQpdfRunnerPromise = null;
 function toUint8Array(bytes) {
@@ -2086,12 +2087,13 @@ class PDFParser{
   async _loadPdfDocument(params){
     const loadingParams=_isSafariWebKit?{
       ...params,
+      wasmUrl:window.pdfJsWasmUrl,
       isOffscreenCanvasSupported:false,
       isImageDecoderSupported:false,
       canvasMaxAreaInBytes:_isIOSWebKit?16*1024*1024:64*1024*1024,
       useSystemFonts:true,
       stopAtErrors:false
-    }:params;
+    }:{...params,wasmUrl:window.pdfJsWasmUrl};
     const loadingTask=pdfjsLib.getDocument(loadingParams);
     let timeoutId;
     const timeout=new Promise((_,reject)=>{

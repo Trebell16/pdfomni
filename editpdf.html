@@ -1621,13 +1621,34 @@ function _safariEraseWithBorderSampling(ctx,sx,sy,w,h,source,fallbackBg){
 }
 function _eraseOriginalTextGlyphs(ctx,obj,source,fastMode=false,sgInstance=null){
   const d=obj.data||{},box=d._originalBox||obj,style=d._originalStyle||d;
+  if(!d._erasingLineBox&&Array.isArray(d._lineBoxes)&&d._lineBoxes.length>1){
+    d._lineBoxes.forEach((lineBox,idx)=>{
+      const siblingProtect=d._lineBoxes
+        .filter((_,i)=>i!==idx)
+        .map(b=>({x:(b.x||0)-1,y:(b.y||0)-1,width:(b.width||1)+2,height:(b.height||1)+2}));
+      const scopedData={
+        ...d,
+        _originalBox:lineBox,
+        _lineBoxes:[lineBox],
+        _erasingLineBox:true,
+        _protectBoxes:[...(Array.isArray(d._protectBoxes)?d._protectBoxes:[]),...siblingProtect],
+      };
+      _eraseOriginalTextGlyphs(ctx,{...obj,x:lineBox.x,y:lineBox.y,width:lineBox.width,height:lineBox.height,data:scopedData},source,fastMode,sgInstance);
+    });
+    return;
+  }
   const bg=_sampleCanvasColor(source||ctx,box,style.color||d.color);
   
   // Always store the background color
   d._sampledBgColor=bg;
   const fontSize=Number(style.fontSize||d.fontSize||12);
-  const padX=Math.max(3,Math.min(24,Math.ceil(fontSize*0.45)));
-  const padY=Math.max(2,Math.min(10,Math.ceil(fontSize*0.18)));
+  const tightErase=d._erasingLineBox||fontSize<=10*RENDER_SCALE||(box.height||0)<=fontSize*1.12;
+  const padX=tightErase
+    ?Math.max(1,Math.min(3,Math.ceil(fontSize*0.08)))
+    :Math.max(2,Math.min(10,Math.ceil(fontSize*0.18)));
+  const padY=tightErase
+    ?Math.max(1,Math.min(2,Math.ceil(fontSize*0.04)))
+    :Math.max(1,Math.min(6,Math.ceil(fontSize*0.1)));
   d._erasePadding={x:padX,y:padY};
   
   // Paint to cover the text using selective erasure
@@ -1760,10 +1781,13 @@ function _eraseOriginalTextGlyphs(ctx,obj,source,fastMode=false,sgInstance=null)
       const bw = maxC - minC + 1;
       const bh = maxR - minR + 1;
       const density = pixels.length / Math.max(1, bw * bh);
-      const touchesTopBottom = minR <= 1 && maxR >= h - 2;
-      const touchesLeftRight = minC <= 1 && maxC >= w - 2;
-      const verticalRule = bw <= maxRuleThickness && bh >= colLimit && bh >= bw * 4 && touchesTopBottom && density > 0.45;
-      const horizontalRule = bh <= maxRuleThickness && bw >= rowLimit && bw >= bh * 6 && touchesLeftRight && density > 0.45;
+      const touchesTopBottom = minR === 0 && maxR >= h - 2;
+      const touchesLeftRight = minC === 0 && maxC >= w - 2;
+      const edgeBand=Math.max(2,Math.ceil(Math.min(w,h)*0.08));
+      const nearVerticalEdge=minC<=edgeBand||maxC>=w-1-edgeBand;
+      const nearHorizontalEdge=minR<=edgeBand||maxR>=h-1-edgeBand;
+      const verticalRule = bw <= maxRuleThickness && bh >= colLimit && bh >= h * 0.82 && bh >= bw * 4 && touchesTopBottom && nearVerticalEdge && density > 0.55;
+      const horizontalRule = bh <= maxRuleThickness && bw >= rowLimit && bw >= w * 0.82 && bw >= bh * 6 && touchesLeftRight && nearHorizontalEdge && density > 0.55;
       if (verticalRule || horizontalRule) {
         for (const pos of pixels) {
           isTextArray[pos] = 0;
@@ -2455,6 +2479,7 @@ class PDFParser{
       const measureCtx=_measureCtx||(_measureCtx=document.createElement('canvas').getContext('2d'));
       measureCtx.font=_canvasTextFont({fontFamily:this._font(it._styleName||it.fontName||''),fontSize:it._fs,fontWeight:this._bold(it._styleName||it.fontName||'')?'bold':'normal',fontStyle:this._italic(it._styleName||it.fontName||'')?'italic':'normal'});
       const correctedItemWidth=this._correctTextItemWidth(it,itemWidth,measureCtx);
+      const itemHeight=Math.max(it._fs,Math.abs(it.height||0)*scale||0);
       _measureTextPartWidths(measureCtx,it.str,correctedItemWidth).forEach((part,segIdx)=>{
         const leftTrim=(part.text.match(/^\s*/)||[''])[0].length;
         const rightTrim=(part.text.match(/\s*$/)||[''])[0].length;
@@ -2488,7 +2513,8 @@ class PDFParser{
               _x:x,
               _y:it._cy-it._fs*0.85,
               _width:width,
-              _end:x+width
+              _end:x+width,
+              _height:itemHeight
             });
           });
         }
@@ -2525,9 +2551,11 @@ class PDFParser{
           seg._text?.length?seg._width/seg._text.length:0
         );
         const samePdfTextItem=seg._itemIdx===last._itemIdx;
-        const maxWordGap=Math.min(Math.max(seg._fs,last._fs)*0.55,avgCharW*2.4);
+        const fontMax=Math.max(seg._fs,last._fs);
+        const sameItemGap=Math.min(fontMax*0.48,avgCharW*1.9);
+        const maxWordGap=Math.min(fontMax*0.38,avgCharW*1.55);
         const normalGap=gap>=-Math.max(seg._fs,last._fs)*0.2&&
-          gap<=(samePdfTextItem?Math.max(seg._fs,last._fs)*0.75:maxWordGap)&&
+          gap<=(samePdfTextItem?sameItemGap:maxWordGap)&&
           sizeRatio>=0.85&&
           Math.abs((seg._angle||0)-(last._angle||0))<=2;
         if(normalGap)cluster.push(seg);
@@ -2698,8 +2726,9 @@ class PDFParser{
     const y=Math.min(...cluster.map(i=>i._y));
     const maxX=Math.max(...cluster.map(i=>i._end));
     const contentW=maxX-x;
-    const rightPad=Math.max(2,Math.min(8,fs*.18,contentW*.025));
-    const objW=Math.max(contentW+rightPad,fs*.8),objH=Math.max(fs*1.2,12*RENDER_SCALE);
+    const lineH=Math.max(...cluster.map(i=>i._height||i._fs||fs));
+    const rightPad=Math.max(1,Math.min(4,fs*.1,contentW*.015));
+    const objW=Math.max(contentW+rightPad,fs*.8),objH=Math.max(lineH*1.06,fs*1.02,3*RENDER_SCALE);
     const base=this._segmentStyle(first);
     let content='',html='';
     cluster.forEach((seg,i)=>{
@@ -2746,8 +2775,9 @@ class PDFParser{
     const y=Math.min(...run.map(i=>i._y));
     const maxX=Math.max(...run.map(i=>i._end));
     const contentW=maxX-x;
-    const rightPad=Math.max(2,Math.min(8,fs*.18,contentW*.025));
-    const objW=Math.max(maxX-x+rightPad,fs*.8), objH=Math.max(fs*1.2,12*RENDER_SCALE);
+    const lineH=Math.max(...run.map(i=>i._height||i._fs||fs));
+    const rightPad=Math.max(1,Math.min(4,fs*.1,contentW*.015));
+    const objW=Math.max(maxX-x+rightPad,fs*.8), objH=Math.max(lineH*1.06,fs*1.02,3*RENDER_SCALE);
     const styleName=first._styleName||first.fontName||'';
     const fontFamily=this._font(styleName);
     let fontSize=_roundNum(fs,2);
@@ -4150,6 +4180,7 @@ const app=(()=>{
   let _lastTouchTap={id:null,time:0};
   let _pendingRenders=0,_extractionDone=false,_initialExtractionFailed=false,_initialPagePrepared=false;
   let _loadInProgress=false;
+  let _batchAddingObjects=false;
   let _textMaskDirty=new Set(); // Track which pages need mask recomputation
   let _clipboard=null,_pasteBump=0;
   let _drawSettings={mode:'rect',stroke:'#6c63ff',fill:'#6c63ff',fillEnabled:true,strokeWidth:3};
@@ -4518,7 +4549,7 @@ const app=(()=>{
       document.getElementById('btn-undo').disabled=!canUndo;
       document.getElementById('btn-redo').disabled=!canRedo;
     });
-    sg.on('add',obj=>{_fullRedraw(obj.pageIndex??activePage);_refreshLayers();});
+    sg.on('add',obj=>{if(_batchAddingObjects)return;_fullRedraw(obj.pageIndex??activePage);_refreshLayers();});
     sg.on('remove',({pageIndex})=>{_fullRedraw(pageIndex??activePage);_refreshLayers();});
     sg.on('update',obj=>{
       // Mark text mask dirty when text objects change
@@ -4626,7 +4657,7 @@ const app=(()=>{
       document.getElementById('btn-undo').disabled=!canUndo;
       document.getElementById('btn-redo').disabled=!canRedo;
     });
-    sg.on('add',obj=>{_fullRedraw(obj.pageIndex??activePage);_refreshLayers();});
+    sg.on('add',obj=>{if(_batchAddingObjects)return;_fullRedraw(obj.pageIndex??activePage);_refreshLayers();});
     sg.on('remove',({pageIndex})=>{_fullRedraw(pageIndex??activePage);_refreshLayers();});
     sg.on('update',obj=>{
       if(obj?.type===OT.TEXT)_textMaskDirty.add(obj.pageIndex??activePage);
@@ -4824,6 +4855,12 @@ const app=(()=>{
       }else{
         _ensureEditableWindow(pi);
       }
+      if(pi===0&&document.getElementById('prog')?.classList.contains('on')){
+        document.getElementById('prog-title').textContent='Separating text from the page';
+        document.getElementById('prog-sub').textContent='Keeping tiny type, table lines, and images in their own lanes';
+        _setProg(88);
+        await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      }
       _hydrateOriginalImages(pi,pw);
       
       // Patch text objects with real font names from PDF.js
@@ -4839,8 +4876,15 @@ const app=(()=>{
       }
       
       // Sample text colors from rendered canvas
+      if(pi===0&&document.getElementById('prog')?.classList.contains('on')){
+        document.getElementById('prog-title').textContent='Polishing the editing layer';
+        document.getElementById('prog-sub').textContent='Almost ready - matching the original text colors';
+        _setProg(95);
+        await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+      }
       if(textObjs.length>0)_sampleTextColorsFromCanvas(pi,pw,textObjs);
       _fullRedraw(pi);
+      if(pi===0&&document.getElementById('prog')?.classList.contains('on'))_setProg(99);
       _evictFarPages(activePage);
     }catch(e){
       if(attempt<1&&parser?.pdfDoc){
@@ -5064,21 +5108,45 @@ const app=(()=>{
       for(let attempt=0;attempt<3&&!success;attempt++){
         try{
           const{textObjs,imageObjs,linkObjs}=await parser.extractObjects(pi);
+          const objectCount=textObjs.length+imageObjs.length+linkObjs.length;
+          if(initial&&document.getElementById('prog')?.classList.contains('on')){
+            const complex=objectCount>350||textObjs.length>300;
+            document.getElementById('prog-title').textContent=complex?'Untangling a complex PDF':'Preparing editable content';
+            document.getElementById('prog-sub').textContent=complex
+              ?`Mapping ${textObjs.length.toLocaleString()} small text regions without swallowing nearby lines`
+              :`Mapping ${objectCount.toLocaleString()} editable elements on page ${pi+1}`;
+            _setProg(76);
+            await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+          }
           _applyEmbeddedFontChains(textObjs,pi,true);
-          textObjs.forEach(o=>sg.addObject(o,false));
-          imageObjs.forEach(o=>sg.addObject(o,false));
-          linkObjs.forEach(o=>sg.addObject(o,false));
+          _batchAddingObjects=true;
+          try{
+            textObjs.forEach(o=>sg.addObject(o,false));
+            imageObjs.forEach(o=>sg.addObject(o,false));
+            linkObjs.forEach(o=>sg.addObject(o,false));
+          }finally{
+            _batchAddingObjects=false;
+          }
           if(textObjs.length>0)_textMaskDirty.add(pi);
           _extractedPages.add(pi);
           success=true;
           if(textObjs.length>0)_loadFontsForPage(textObjs).catch(e=>console.warn('Font loading for page',pi,e));
-          if(_renderedPages.has(pi)){
+          if(initial){
+            _refreshLayers();
+            if(document.getElementById('prog')?.classList.contains('on')){
+              document.getElementById('prog-title').textContent='Teaching the small print some manners';
+              document.getElementById('prog-sub').textContent='Building one clean editing layer instead of redrawing it a thousand times';
+              _setProg(83);
+              await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+            }
+          }else if(_renderedPages.has(pi)){
             try{_hydrateOriginalImages(pi,_pageWrappers[pi]);}
             catch(e){console.warn('Image hydration unavailable for page',pi,e);}
             try{_sampleTextColorsFromCanvas(pi,_pageWrappers[pi],textObjs);}
             catch(e){console.warn('Text color sampling unavailable for page',pi,e);}
             try{_fullRedraw(pi);}
             catch(e){console.warn('Initial object redraw unavailable for page',pi,e);}
+            if(pi===activePage)_refreshLayers();
           }
         }catch(e){
           console.warn(`extract p${pi} attempt ${attempt+1}`,e);

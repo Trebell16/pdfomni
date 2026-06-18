@@ -2192,7 +2192,7 @@ class PDFParser{
     const page=await this.getPage(pi);
     const vp=page.getViewport({scale:RENDER_SCALE});
     canvas.width=vp.width;canvas.height=vp.height;
-    const ctx=_canvas2d(canvas,true);
+    const ctx=_canvas2d(canvas);
     ctx.clearRect(0,0,canvas.width,canvas.height);
     const task=page.render({canvasContext:ctx,viewport:vp});
     await task.promise;
@@ -2431,6 +2431,10 @@ class PDFParser{
       OPS.paintImageMaskXObject,OPS.paintImageXObjectRepeat,OPS.paintImageMaskXObjectRepeat,
       OPS.paintInlineImageXObjectGroup,OPS.paintImageMaskXObjectGroup,OPS.paintSolidColorImageMask
     ].filter(Boolean));
+    const stencilOps=new Set([
+      OPS.paintImageMaskXObject,OPS.paintImageMaskXObjectRepeat,
+      OPS.paintImageMaskXObjectGroup,OPS.paintSolidColorImageMask
+    ].filter(Boolean));
     const out=[],stack=[];let ctm=[1,0,0,1,0,0];
     const mul=(m,n)=>[m[0]*n[0]+m[2]*n[1],m[1]*n[0]+m[3]*n[1],m[0]*n[2]+m[2]*n[3],m[1]*n[2]+m[3]*n[3],m[0]*n[4]+m[2]*n[5]+m[4],m[1]*n[4]+m[3]*n[5]+m[5]];
     const apply=(m,x,y)=>[m[0]*x+m[2]*y+m[4],m[1]*x+m[3]*y+m[5]];
@@ -2467,12 +2471,31 @@ class PDFParser{
           
           if(!shouldFilter){
             const box={x:b.x,y:b.y,width:b.width,height:b.height,rotation:0};
-            out.push({id:uid(),type:OT.IMAGE,pageIndex:pi,x:b.x,y:b.y,width:b.width,height:b.height,rotation:0,opacity:1,visible:true,zIndex:3+out.length,dirty:false,isOriginal:true,selected:false,data:{src:'',brightness:100,contrast:100,saturate:100,blur:0,borderRadius:0,quality:.92,flipX:false,flipY:false,cropLeft:0,cropTop:0,cropRight:0,cropBottom:0,grayscale:false,bw:false,transparentWhite:false,_originalBox:box}});
+            out.push({id:uid(),type:OT.IMAGE,pageIndex:pi,x:b.x,y:b.y,width:b.width,height:b.height,rotation:0,opacity:1,visible:true,zIndex:3+out.length,dirty:false,isOriginal:true,selected:false,data:{src:'',brightness:100,contrast:100,saturate:100,blur:0,borderRadius:0,quality:.92,flipX:false,flipY:false,cropLeft:0,cropTop:0,cropRight:0,cropBottom:0,grayscale:false,bw:false,transparentWhite:false,_originalBox:box,_stencilMask:stencilOps.has(fn)}});
           }
         }
       }
     }
-    return out;
+    const merged=[];
+    for(const obj of out){
+      const prev=merged[merged.length-1];
+      const gapX=prev?obj.x-(prev.x+prev.width):Infinity;
+      const gapY=prev?obj.y-(prev.y+prev.height):Infinity;
+      const verticalBand=prev&&Math.abs(prev.x-obj.x)<=2&&Math.abs(prev.width-obj.width)<=2&&
+        gapY>=-2&&gapY<=Math.max(3,Math.min(prev.height,obj.height)*.08);
+      const horizontalBand=prev&&Math.abs(prev.y-obj.y)<=2&&Math.abs(prev.height-obj.height)<=2&&
+        gapX>=-2&&gapX<=Math.max(3,Math.min(prev.width,obj.width)*.08);
+      const joinsStencilBand=prev?.data?._stencilMask&&obj.data._stencilMask&&
+        (verticalBand||horizontalBand);
+      if(!joinsStencilBand){merged.push(obj);continue;}
+      const x=Math.min(prev.x,obj.x),y=Math.min(prev.y,obj.y);
+      const maxX=Math.max(prev.x+prev.width,obj.x+obj.width);
+      const maxY=Math.max(prev.y+prev.height,obj.y+obj.height);
+      prev.x=x;prev.y=y;prev.width=maxX-x;prev.height=maxY-y;
+      prev.data._originalBox={x,y,width:prev.width,height:prev.height,rotation:0};
+      prev.data._stencilBands=(prev.data._stencilBands||1)+1;
+    }
+    return merged;
   }
 
   _buildTextObjs(items,vp,pi,styles={},colors=[],fontDetails={}){

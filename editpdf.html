@@ -14,6 +14,9 @@
 </script>
 <script>
   (function () {
+    if (new URLSearchParams(window.location.search).has('embedded')) {
+      document.documentElement.classList.add('embedded');
+    }
     function apply(theme) {
       document.documentElement.dataset.theme = theme || 'light';
       var icon = document.getElementById('edit-theme-icon');
@@ -26,6 +29,9 @@
       var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
       try { localStorage.setItem('pdfomni_theme', next); } catch (_) {}
       apply(next);
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'pdfomni-theme', theme: next }, window.location.origin);
+      }
     };
     try {
       apply(localStorage.getItem('pdfomni_theme') || 'light');
@@ -121,6 +127,9 @@ html,body{width:100%;height:100%;overflow:hidden;font-family:'Inter',system-ui,s
 
 /* ══ LAYOUT ══ */
 #app{position:relative;display:grid;grid-template-rows:52px 1fr;grid-template-columns:220px 1fr;grid-template-areas:"tb tb" "sb cv";height:100vh;width:100vw}
+html.embedded .editor-seo,
+html.embedded .editor-site-footer{display:none}
+html.embedded:not(.document-open) .sidebar-edge-toggle{display:none}
 #app.sidebar-hidden{grid-template-columns:0 1fr}
 #app.sidebar-hidden #sidebar{display:none}
 .sidebar-toggle{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:var(--r1);border:none;background:transparent;color:var(--text-secondary);cursor:pointer;transition:var(--tr)}
@@ -1230,10 +1239,38 @@ function _measureTextPartWidths(ctx,text,totalWidth){
   return parts.map(part=>({text:part,width:totalWidth*(part.length/chars)}));
 }
 let _measureCtx=null;
+function _lineWordSpacing(d,lineIndex=0){
+  const perLine=d?._lineWordSpacings;
+  const value=Array.isArray(perLine)&&Number.isFinite(Number(perLine[lineIndex]))
+    ?Number(perLine[lineIndex])
+    :Number(d?.wordSpacing)||0;
+  return value;
+}
+function _textSpacingCounts(text){
+  const chars=Array.from(String(text||''));
+  return{letters:Math.max(0,chars.length-1),words:(String(text||'').match(/[ \t]/g)||[]).length};
+}
+function _measureCanvasLineWidth(ctx,d,text,lineIndex=0){
+  const counts=_textSpacingCounts(text);
+  return ctx.measureText(String(text||'')).width+
+    counts.letters*(Number(d?.letterSpacing)||0)+
+    counts.words*_lineWordSpacing(d,lineIndex);
+}
+function _drawCanvasTextLine(ctx,text,x,y,d,lineIndex=0,stroke=false){
+  const value=String(text||''),letter=Number(d?.letterSpacing)||0,word=_lineWordSpacing(d,lineIndex);
+  const paint=part=>{if(stroke)ctx.strokeText(part,x,y);ctx.fillText(part,x,y);};
+  if(!letter&&!word){paint(value);return;}
+  const parts=letter?Array.from(value):value.split(/([ \t]+)/).filter(Boolean);
+  for(const part of parts){
+    paint(part);
+    const counts=_textSpacingCounts(part);
+    x+=ctx.measureText(part).width+counts.letters*letter+counts.words*word;
+  }
+}
 function _measureCanvasTextWidth(d,content,fontSize=d.fontSize||12){
   _measureCtx=_measureCtx||document.createElement('canvas').getContext('2d');
   _measureCtx.font=_canvasTextFont({...d,fontSize});
-  return Math.max(1,...String(content||'').split('\n').map(line=>_measureCtx.measureText(line).width));
+  return Math.max(1,...String(content||'').split('\n').map((line,i)=>_measureCanvasLineWidth(_measureCtx,d,line,i)));
 }
 function _estimateWrappedLineCount(d,content,width,fontSize=d.fontSize||12){
   _measureCtx=_measureCtx||document.createElement('canvas').getContext('2d');
@@ -1245,7 +1282,8 @@ function _estimateWrappedLineCount(d,content,width,fontSize=d.fontSize||12){
     let lineW=0,lines=1;
     for(const token of words){
       const isSpace=/^\s+$/.test(token);
-      const w=_measureCtx.measureText(token).width+Math.max(0,token.length-1)*letter+(isSpace?word:0);
+      const counts=_textSpacingCounts(token);
+      const w=_measureCtx.measureText(token).width+counts.letters*letter+(isSpace?counts.words*word:0);
       if(!isSpace&&lineW>0&&lineW+w>maxW){lines++;lineW=w;}
       else lineW+=w;
     }
@@ -1434,19 +1472,18 @@ function _drawCanvasText(ctx,box,d,content,color=d.color||'#000',stroke=false){
   String(content||'').split('\n').forEach((line,i)=>{
     const align=Array.isArray(d._lineAligns)?(d._lineAligns[i]||d.align):d.align;
     const x=align==='center'?box.width/2:align==='right'?box.width:0,y=i*lh;
-    if(stroke)ctx.strokeText(line,x,y);
-    ctx.fillText(line,x,y);
+    _drawCanvasTextLine(ctx,line,x,y,d,i,stroke);
   });
   ctx.restore();
 }
-function _wrapCanvasTextLine(d,line,maxW){
+function _wrapCanvasTextLine(d,line,maxW,lineIndex=0){
   const text=String(line||'');
   if(!text)return[''];
   _measureCtx=_measureCtx||document.createElement('canvas').getContext('2d');
   _measureCtx.font=_canvasTextFont(d);
   const tokens=text.split(/(\s+)/).filter(Boolean),out=[];
   let cur='';
-  const width=s=>_measureCtx.measureText(s).width;
+  const width=s=>_measureCanvasLineWidth(_measureCtx,d,s,lineIndex);
   const push=()=>{out.push(cur.trimEnd());cur='';};
   for(const token of tokens){
     const t=/^\s+$/.test(token)?' ':token;
@@ -1480,7 +1517,9 @@ function _drawCanvasExportText(ctx,obj){
       color:d.color||'#000',
       backgroundColor:'transparent',
       underline:false,
-      align:d.align||'left'
+      align:d.align||'left',
+      letterSpacing:Number(d.letterSpacing)||0,
+      wordSpacing:Number(d.wordSpacing)||0
     };
     const styled=(node,style)=>{
       if(node.nodeType!==1)return style;
@@ -1523,7 +1562,8 @@ function _drawCanvasExportText(ctx,obj){
     lines.forEach((line,i)=>{
       const runs=line.runs.map(run=>{
         ctx.font=_canvasTextFont(run.style);
-        return{...run,width:ctx.measureText(run.text).width};
+        const runData={...d,...run.style,wordSpacing:_lineWordSpacing(d,i)};
+        return{...run,data:runData,width:_measureCanvasLineWidth(ctx,runData,run.text,0)};
       });
       const total=runs.reduce((sum,run)=>sum+run.width,0);
       const align=line.align||d._lineAligns?.[i]||d.align||'left';
@@ -1537,7 +1577,7 @@ function _drawCanvasExportText(ctx,obj){
           ctx.fillRect(x,y,run.width,(style.lineHeight||d.lineHeight||1.2)*(style.fontSize||fontSize));
         }
         ctx.fillStyle=style.color||d.color||'#000';
-        ctx.fillText(run.text,x,y);
+        _drawCanvasTextLine(ctx,run.text,x,y,run.data,0,false);
         if(style.underline){
           ctx.fillRect(x,y+(style.fontSize||fontSize)*.94,Math.max(1,run.width),Math.max(1,(style.fontSize||fontSize)*.05));
         }
@@ -1553,14 +1593,14 @@ function _drawCanvasExportText(ctx,obj){
   source.forEach((line,i)=>{
     const align=Array.isArray(d._lineAligns)?(d._lineAligns[i]||d.align):d.align;
     const shouldWrap=!d._singleLine&&_measureCanvasTextWidth(d,line,fontSize)>obj.width+Math.max(2,fontSize*.08);
-    (shouldWrap?_wrapCanvasTextLine(d,line,obj.width):[line]).forEach(text=>rows.push({text,align}));
+    (shouldWrap?_wrapCanvasTextLine(d,line,obj.width,i):[line]).forEach(text=>rows.push({text,align,lineIndex:i}));
   });
   rows.forEach((row,i)=>{
     const align=row.align||d.align||'left';
     const w=_measureCanvasTextWidth(d,row.text,fontSize);
     const x=align==='center'?(obj.width-w)/2:align==='right'?obj.width-w:0;
     const y=i*lineHeight;
-    ctx.fillText(row.text,x,y);
+    _drawCanvasTextLine(ctx,row.text,x,y,d,row.lineIndex,false);
     if(d.underline){
       ctx.fillRect(x,y+fontSize*.94,Math.max(1,w),Math.max(1,fontSize*.05));
     }
@@ -2490,6 +2530,10 @@ class PDFParser{
       const joinsStencilBand=prev?.data?._stencilMask&&obj.data._stencilMask&&
         (verticalBand||horizontalBand);
       if(!joinsStencilBand){merged.push(obj);continue;}
+      const seam=verticalBand
+        ?{axis:'y',at:(prev.y+prev.height+obj.y)/2}
+        :{axis:'x',at:(prev.x+prev.width+obj.x)/2};
+      (prev.data._stencilSeams||(prev.data._stencilSeams=[])).push(seam);
       const x=Math.min(prev.x,obj.x),y=Math.min(prev.y,obj.y);
       const maxX=Math.max(prev.x+prev.width,obj.x+obj.width);
       const maxY=Math.max(prev.y+prev.height,obj.y+obj.height);
@@ -2608,8 +2652,8 @@ class PDFParser{
         );
         const samePdfTextItem=seg._itemIdx===last._itemIdx;
         const fontMax=Math.max(seg._fs,last._fs);
-        const sameItemGap=Math.min(fontMax*0.48,avgCharW*1.9);
-        const maxWordGap=Math.min(fontMax*0.38,avgCharW*1.55);
+        const sameItemGap=Math.min(fontMax*0.72,avgCharW*2.6);
+        const maxWordGap=Math.min(fontMax*.98,avgCharW*3.5);
         const normalGap=gap>=-Math.max(seg._fs,last._fs)*0.2&&
           gap<=(samePdfTextItem?sameItemGap:maxWordGap)&&
           sizeRatio>=0.85&&
@@ -2654,7 +2698,7 @@ class PDFParser{
     const out=[];
     for(const obj of objs.slice().sort((a,b)=>a.y-b.y||a.x-b.x)){
       let merged=false;
-      for(const prev of out){
+      for(const prev of out.slice().reverse()){
         if(sameStyle(prev,obj)){
           const fs=obj.data.fontSize||12;
           
@@ -2672,7 +2716,8 @@ class PDFParser{
           const hasSameLineSibling = objs.some(o => 
             o.id !== obj.id && 
             Math.abs(o.y - obj.y) <= fs * 0.3 && 
-            Math.abs(o.x - obj.x) > fs * 1.5
+            Math.abs(o.x - obj.x) > fs * 1.5 &&
+            Math.min(o.width||0,obj.width||0) < fs * 5
           );
           if (hasSameLineSibling) {
             continue;
@@ -2683,9 +2728,13 @@ class PDFParser{
           const meaningfulOverlap=overlap(prev,obj)>Math.min(prev.width,obj.width)*0.3;
 
           // Only merge if close vertically (max 0.5x font size) AND both aligned AND overlapping
-          if(vGap>=-fs*.2&&vGap<=fs*.5&&leftAligned&&meaningfulOverlap){
+          if(vGap>=-fs*.45&&vGap<=fs*.5&&leftAligned&&meaningfulOverlap){
             const minX=Math.min(prev.x,obj.x),minY=Math.min(prev.y,obj.y);
             const maxX=Math.max(prev.x+prev.width,obj.x+obj.width),maxY=Math.max(prev.y+prev.height,obj.y+obj.height);
+            const lineSpacings=o=>Array.isArray(o.data?._lineWordSpacings)
+              ?o.data._lineWordSpacings.slice()
+              :String(o.data?.content||'').split('\n').map(()=>Number(o.data?.wordSpacing)||0);
+            const mergedWordSpacings=[...lineSpacings(prev),...lineSpacings(obj)];
             if(prev.data.html||obj.data.html){
               const block=o=>o.data.html||`<div>${_htmlEscape(o.data.content||'').replace(/\n/g,'<br>')}</div>`;
               prev.data.html=_cleanTextHtml(block(prev)+block(obj));
@@ -2703,6 +2752,9 @@ class PDFParser{
             prev.data._originalContent=(prev.data._originalContent||'')+'\n'+(obj.data._originalContent||obj.data.content||'');
             prev.data._singleLine=false;
             prev.data._lineBoxes=[...(prev.data._lineBoxes||[{x:prev.x,y:prev.y,width:prev.width,height:prev.height}]),...(obj.data._lineBoxes||[{x:obj.x,y:obj.y,width:obj.width,height:obj.height}])];
+            prev.data._lineWordSpacings=mergedWordSpacings;
+            prev.data.wordSpacing=_roundNum(mergedWordSpacings.reduce((sum,value)=>sum+value,0)/Math.max(1,mergedWordSpacings.length),2);
+            if(prev.data._originalStyle)prev.data._originalStyle.wordSpacing=prev.data.wordSpacing;
             prev.x=minX;prev.y=minY;prev.width=maxX-minX;prev.height=maxY-minY;
             prev.data._originalBox={x:prev.x,y:prev.y,width:prev.width,height:prev.height,rotation:prev.rotation||0};
             const ys=prev.data._lineBoxes.map(b=>b.y).sort((a,b)=>a-b);
@@ -2715,12 +2767,22 @@ class PDFParser{
             merged=true;
             break;
           }
-          break;
+          continue;
         }
       }
       if(!merged)out.push(obj);
     }
-    out.forEach(obj=>this._detectLineAligns(obj));
+    out.forEach(obj=>{
+      const boxes=obj.data?._lineBoxes||[];
+      if(boxes.length>1){
+        const fs=Number(obj.data.fontSize)||12;
+        const right=Math.max(...boxes.map(box=>box.x+box.width));
+        const reserve=Math.max(4,Math.min(12,fs*.3));
+        obj.width=Math.max(obj.width,right-obj.x+reserve);
+        if(obj.data._originalBox)obj.data._originalBox.width=obj.width;
+      }
+      this._detectLineAligns(obj);
+    });
     return out;
   }
 
@@ -2772,6 +2834,19 @@ class PDFParser{
     return css.join(';');
   }
 
+  _deriveWordSpacing(content,contentWidth,style){
+    const spaces=_textSpacingCounts(content).words;
+    if(!spaces||!Number.isFinite(contentWidth)||contentWidth<=0)return 0;
+    const ctx=_measureCtx||(_measureCtx=document.createElement('canvas').getContext('2d'));
+    ctx.font=_canvasTextFont(style);
+    const natural=ctx.measureText(content).width;
+    if(!Number.isFinite(natural))return 0;
+    const fs=Number(style.fontSize)||12;
+    const value=(contentWidth-natural)/spaces;
+    const limited=Math.max(-Math.min(4,fs*.25),Math.min(Math.min(40,fs*1.25),value));
+    return Math.abs(limited)<.05?0:_roundNum(limited,2);
+  }
+
   _textClusterObj(cluster,pi,order){
     if(!cluster.length)return null;
     const styleKeys=new Set(cluster.map(seg=>`${seg._styleKey}|${seg._color}`));
@@ -2799,7 +2874,8 @@ class PDFParser{
     html=_cleanTextHtml(`<div>${html.trim()}</div>`);
     const box={x,y,width:objW,height:objH,rotation:Math.round(first._angle)};
     const originalFontSize=_roundNum(fs,2);
-    const originalStyle={fontFamily:base.fontFamily,fontSize:originalFontSize,fontWeight:'normal',fontStyle:'normal',color:base.color,backgroundColor:'transparent',underline:false,align:'left',lineHeight:1.2,letterSpacing:0,wordSpacing:0};
+    const wordSpacing=this._deriveWordSpacing(content,contentW,{...base,fontSize:originalFontSize});
+    const originalStyle={fontFamily:base.fontFamily,fontSize:originalFontSize,fontWeight:'normal',fontStyle:'normal',color:base.color,backgroundColor:'transparent',underline:false,align:'left',lineHeight:1.2,letterSpacing:0,wordSpacing};
     return{
       id:uid(),type:OT.TEXT,pageIndex:pi,
       x,y,width:objW,height:objH,
@@ -2810,7 +2886,7 @@ class PDFParser{
         html,
         fontFamily:base.fontFamily,fontSize:originalFontSize,
         fontWeight:'normal',fontStyle:'normal',
-        color:base.color,backgroundColor:'transparent',underline:false,align:'left',lineHeight:1.2,letterSpacing:0,wordSpacing:0,
+        color:base.color,backgroundColor:'transparent',underline:false,align:'left',lineHeight:1.2,letterSpacing:0,wordSpacing,
         _originalContent:content,
         _originalHtml:html,
         _originalStyle:originalStyle,
@@ -2819,6 +2895,7 @@ class PDFParser{
         _pdfFontKey:first.fontName,  // Raw PDF font key for lookup
         _symbolNormalized:cluster.some(seg=>seg._symbolNormalized),
         _lineBoxes:[{x,y,width:contentW,height:objH}],
+        _lineWordSpacings:[wordSpacing],
         _lineAligns:['left'],
         _singleLine:true,
       }
@@ -2852,7 +2929,8 @@ class PDFParser{
     content=content.replace(/\s+/g,' ').trim();
     const box={x,y,width:objW,height:objH,rotation:Math.round(first._angle)};
     fontSize=_roundNum(fs,2);
-    const originalStyle={fontFamily,fontSize,fontWeight,fontStyle,color,backgroundColor:'transparent',underline:false,align:'left',lineHeight:1.2,letterSpacing:0,wordSpacing:0};
+    const wordSpacing=this._deriveWordSpacing(content,contentW,{fontFamily,fontSize,fontWeight,fontStyle});
+    const originalStyle={fontFamily,fontSize,fontWeight,fontStyle,color,backgroundColor:'transparent',underline:false,align:'left',lineHeight:1.2,letterSpacing:0,wordSpacing};
     return{
       id:uid(),type:OT.TEXT,pageIndex:pi,
       x,y,width:objW,height:objH,
@@ -2862,7 +2940,7 @@ class PDFParser{
         content,
         fontFamily,fontSize,
         fontWeight,fontStyle,
-        color,backgroundColor:'transparent',underline:false,align:'left',lineHeight:1.2,letterSpacing:0,wordSpacing:0,
+        color,backgroundColor:'transparent',underline:false,align:'left',lineHeight:1.2,letterSpacing:0,wordSpacing,
         _originalContent:content, // immutable snapshot - never modify this
         _originalStyle:originalStyle,
         _originalBox:box,
@@ -2870,6 +2948,7 @@ class PDFParser{
         _pdfFontKey:first.fontName,  // Raw PDF font key for lookup
         _symbolNormalized:run.some(seg=>seg._symbolNormalized),
         _lineBoxes:[{x,y,width:contentW,height:objH}],
+        _lineWordSpacings:[wordSpacing],
         _lineAligns:['left'],
         _singleLine:true,
       }
@@ -3944,18 +4023,20 @@ class Exporter{
         const align=Array.isArray(d._lineAligns)?(d._lineAligns[i]||d.align):d.align;
         const safeLine=this._sanitizePdfText(line);
         const shouldWrap=this._shouldWrapPdfPlainLine(d,box,safeLine);
-        (shouldWrap?this._wrapPdfPlainLine(font,safeLine,fontSize,maxW):[safeLine]).forEach(text=>lines.push({text,align}));
+        const wordSpacing=_lineWordSpacing(d,i)/RENDER_SCALE;
+        (shouldWrap?this._wrapPdfPlainLine(font,safeLine,fontSize,maxW,wordSpacing):[safeLine]).forEach(text=>lines.push({text,align,wordSpacing}));
       });
       lines.forEach((line,i)=>{
         const pdfLine=line.text;
         // Skip empty lines
         if(!pdfLine.trim())return;
-        const baseW=font.widthOfTextAtSize(pdfLine,fontSize);
+        const baseW=this._pdfSpacedTextWidth(font,pdfLine,fontSize,line.wordSpacing);
         const drawSize=!erase&&!d._singleLine&&baseW>maxW?Math.max(fontSize*.72,fontSize*(maxW/Math.max(baseW,0.01))*.995):fontSize;
-        const w=font.widthOfTextAtSize(pdfLine,drawSize);
+        const spacing=line.wordSpacing*(drawSize/fontSize);
+        const w=this._pdfSpacedTextWidth(font,pdfLine,drawSize,spacing);
         const align=line.align||d.align;
         let x=x0;if(align==='center')x+=(box.width/RENDER_SCALE-w)/2;else if(align==='right')x+=box.width/RENDER_SCALE-w;
-        page.drawText(pdfLine,{x:x+dx,y:y0-i*lineHeight+dy,size:drawSize,font,color:this._pdfColor(color),rotate:degrees(box.rotation||0),opacity});
+        this._drawPdfSpacedText(page,pdfLine,{x:x+dx,y:y0-i*lineHeight+dy,size:drawSize,font,color:this._pdfColor(color),rotate:degrees(box.rotation||0),opacity},spacing,box.rotation||0);
         if(!erase&&d.underline){
           const uy=y0-i*lineHeight-drawSize*.16;
           page.drawLine({start:{x:x+dx,y:uy+dy},end:{x:x+w+dx,y:uy+dy},thickness:Math.max(.4,drawSize*.06),color:this._pdfColor(color),opacity});
@@ -3963,12 +4044,26 @@ class Exporter{
       });
     }
   }
-  _wrapPdfPlainLine(font,line,size,maxW){
+  _pdfSpacedTextWidth(font,text,size,wordSpacing=0){
+    return font.widthOfTextAtSize(text,size)+_textSpacingCounts(text).words*wordSpacing;
+  }
+  _drawPdfSpacedText(page,text,options,wordSpacing=0,rotation=0){
+    if(!wordSpacing){page.drawText(text,options);return;}
+    const angle=rotation*Math.PI/180,cos=Math.cos(angle),sin=Math.sin(angle);
+    let x=options.x,y=options.y;
+    for(const token of String(text||'').split(/([ \t]+)/).filter(Boolean)){
+      const spaces=_textSpacingCounts(token).words;
+      if(!spaces)page.drawText(token,{...options,x,y});
+      const advance=options.font.widthOfTextAtSize(token,options.size)+spaces*wordSpacing;
+      x+=advance*cos;y+=advance*sin;
+    }
+  }
+  _wrapPdfPlainLine(font,line,size,maxW,wordSpacing=0){
     const text=String(line||'');
     if(!text)return[''];
     const tokens=text.split(/(\s+)/).filter(Boolean);
     const out=[];let cur='';
-    const width=s=>font.widthOfTextAtSize(s,size);
+    const width=s=>this._pdfSpacedTextWidth(font,s,size,wordSpacing);
     const push=()=>{out.push(cur.trimEnd());cur='';};
     for(const token of tokens){
       const t=/^\s+$/.test(token)?' ':token;
@@ -3996,7 +4091,9 @@ class Exporter{
       color:d.color||'#000000',
       backgroundColor:'transparent',
       underline:d.html?false:(!!d.underline),
-      align:d.align||'left'
+      align:d.align||'left',
+      letterSpacing:Number(d.letterSpacing)||0,
+      wordSpacing:Number(d.wordSpacing)||0
     };
     const applyNodeStyle=(node,style)=>{
       if(node.nodeType!==1)return style;
@@ -4071,14 +4168,15 @@ class Exporter{
     for(let i=0;i<lines.length;i++){
       const line=lines[i];
       const runs=[];
+      const lineWordSpacing=_lineWordSpacing(d,i)/RENDER_SCALE;
       for(const seg of line.segments){
         const text=this._sanitizePdfText(seg.text);
         if(!text.trim()&&String(seg.text||'').trim())continue;
         const style={...d,...seg.style};
         const font=await this._pdfFont(page,style);
         const size=(seg.style.fontSize||d.fontSize||12)/RENDER_SCALE;
-        const width=font.widthOfTextAtSize(text,size);
-        runs.push({text,style,font,size,width});
+        const width=this._pdfSpacedTextWidth(font,text,size,lineWordSpacing);
+        runs.push({text,style,font,size,width,wordSpacing:lineWordSpacing});
       }
       const align=line.align||d._lineAligns?.[i]||d.align||'left';
       const shouldWrap=this._shouldWrapPdfRuns(d,box,line,runs);
@@ -4096,7 +4194,7 @@ class Exporter{
         if(bg&&bg!=='transparent'){
           page.drawRectangle({x,y:y-runSize*.2,width:runWidth,height:runSize*1.1,color:this._pdfColor(bg),opacity:this._pdfOpacity(bg,opacity)});
         }
-        page.drawText(run.text,{x,y,size:runSize,font:run.font,color:this._pdfColor(run.style.color||d.color||'#000'),rotate:rotation,opacity});
+        this._drawPdfSpacedText(page,run.text,{x,y,size:runSize,font:run.font,color:this._pdfColor(run.style.color||d.color||'#000'),rotate:rotation,opacity},run.wordSpacing*rowScale,box.rotation||0);
         if(run.style.underline){
           const uy=y-runSize*.16;
           page.drawLine({start:{x,y:uy},end:{x:x+runWidth,y:uy},thickness:Math.max(.4,runSize*.06),color:this._pdfColor(run.style.color||d.color||'#000'),opacity});
@@ -4113,7 +4211,7 @@ class Exporter{
       const parts=String(run.text||'').split(/(\s+)/).filter(Boolean);
       for(const part of parts){
         const text=/^\s+$/.test(part)?' ':part;
-        const width=run.font.widthOfTextAtSize(text,run.size);
+        const width=this._pdfSpacedTextWidth(run.font,text,run.size,run.wordSpacing||0);
         if(cur.length&&curW+width>maxW){push();if(text===' ')continue;}
         cur.push({...run,text,width});
         curW+=width;
@@ -4662,6 +4760,10 @@ const app=(()=>{
       await _buildShells(firstDim);      // create DOM shells (no render yet)
       _fitCanvasToMobile();
       snack(`Opened "${file.name}" — ${pc} page${pc>1?'s':''}`,'success');
+      document.documentElement.classList.add('document-open');
+      if(window.parent!==window){
+        window.parent.postMessage({type:'pdfomni-editor-workspace'},window.location.origin);
+      }
       document.getElementById('drop-zone').classList.add('hidden');
       const canvasScroll=document.getElementById('canvas-scroll');
       canvasScroll.style.display='flex';
@@ -4974,17 +5076,57 @@ const app=(()=>{
     }
   }
 
+  function _healStencilSeams(ctx,c,obj,cropX,cropY,cropW,cropH){
+    const seams=obj.data?._stencilSeams;if(!Array.isArray(seams)||!seams.length)return;
+    const image=ctx.getImageData(0,0,c.width,c.height),pixels=image.data;
+    const lum=i=>(pixels[i]+pixels[i+1]+pixels[i+2])/3;
+    for(const seam of seams){
+      const vertical=seam.axis==='y';
+      const at=Math.round(vertical
+        ?(seam.at-cropY)*c.height/cropH
+        :(seam.at-cropX)*c.width/cropW);
+      const along=vertical?c.width:c.height;
+      const across=vertical?c.height:c.width;
+      if(at<2||at>across-3)continue;
+      for(let d=-1;d<=1;d++){
+        const pos=at+d;
+        for(let n=0;n<along;n++){
+          const index=vertical?(pos*c.width+n)*4:(n*c.width+pos)*4;
+          const before=vertical?((at-2)*c.width+n)*4:(n*c.width+at-2)*4;
+          const after=vertical?((at+2)*c.width+n)*4:(n*c.width+at+2)*4;
+          const currentLum=lum(index),beforeLum=lum(before),afterLum=lum(after);
+          if(currentLum<96||beforeLum<235||afterLum<235||currentLum>Math.min(beforeLum,afterLum)-2)continue;
+          const t=(d+2)/4;
+          for(let channel=0;channel<4;channel++)pixels[index+channel]=Math.round(pixels[before+channel]*(1-t)+pixels[after+channel]*t);
+        }
+      }
+    }
+    ctx.putImageData(image,0,0);
+  }
+
   function _hydrateOriginalImages(pi,pw){
     if(!pw?.bgCanvas?.width)return;
     const cvs=pw.bgCanvas,ctx=_canvas2d(cvs,true);
     sg.getPageObjects(pi).forEach(obj=>{
       if(obj.type!==OT.IMAGE||!obj.isOriginal||obj.data.src)return;
       const b=obj.data._originalBox||obj;
-      const sx=Math.max(0,Math.floor(b.x)),sy=Math.max(0,Math.floor(b.y));
-      const sw=Math.min(cvs.width-sx,Math.ceil(b.width)),sh=Math.min(cvs.height-sy,Math.ceil(b.height));
+      const mergedStencil=Array.isArray(obj.data._stencilSeams)&&obj.data._stencilSeams.length>0;
+      const cropX=mergedStencil?Math.max(0,b.x):Math.max(0,Math.floor(b.x));
+      const cropY=mergedStencil?Math.max(0,b.y):Math.max(0,Math.floor(b.y));
+      const cropW=Math.min(cvs.width-cropX,mergedStencil?b.width:Math.ceil(b.width));
+      const cropH=Math.min(cvs.height-cropY,mergedStencil?b.height:Math.ceil(b.height));
+      const sw=Math.ceil(cropW),sh=Math.ceil(cropH);
       if(sw<2||sh<2)return;
       const c=document.createElement('canvas');c.width=sw;c.height=sh;
-      c.getContext('2d').drawImage(cvs,sx,sy,sw,sh,0,0,sw,sh);
+      const cctx=c.getContext('2d');
+      cctx.drawImage(cvs,cropX,cropY,cropW,cropH,0,0,sw,sh);
+      if(mergedStencil){
+        _healStencilSeams(cctx,c,obj,cropX,cropY,cropW,cropH);
+        const dx=Math.max(0,Math.floor(b.x)),dy=Math.max(0,Math.floor(b.y));
+        const dw=Math.min(cvs.width-dx,Math.ceil(b.x+b.width)-dx);
+        const dh=Math.min(cvs.height-dy,Math.ceil(b.y+b.height)-dy);
+        ctx.drawImage(c,0,0,sw,sh,dx,dy,dw,dh);
+      }
       const dataUrl=c.toDataURL('image/png');
       // Safari guard: toDataURL returns empty/minimal data URL when canvas
       // exceeds size limits — skip assignment to avoid corrupt image data
@@ -5538,7 +5680,7 @@ const app=(()=>{
         div.style.textAlign=d.align||'left';
         div.style.lineHeight=String(d.lineHeight||1.2);
         div.style.letterSpacing=(d.letterSpacing||0)+'px';
-        div.style.wordSpacing=(d.wordSpacing||0)+'px';
+        div.style.wordSpacing=_cssPx((d.wordSpacing||0)*sf);
         div.style.opacity=String(obj.opacity??1);
         // Background and padding already set above based on position
         div.style.boxSizing='border-box';
@@ -6043,7 +6185,7 @@ const app=(()=>{
         <span class="ot-label">Spacing</span>
         <label class="ot-range">Line <input type="range" min="0.8" max="3" step="0.05" value="${d.lineHeight||1.2}" data-k="lineHeight"/><span data-v="lineHeight">${d.lineHeight||1.2}</span></label>
         <label class="ot-range">Char <input type="range" min="-2" max="20" step="0.25" value="${d.letterSpacing||0}" data-k="letterSpacing"/><span data-v="letterSpacing">${d.letterSpacing||0}</span></label>
-        <label class="ot-range">Word <input type="range" min="-4" max="40" step="0.5" value="${d.wordSpacing||0}" data-k="wordSpacing"/><span data-v="wordSpacing">${d.wordSpacing||0}</span></label>
+        <label class="ot-range">Word <input type="range" min="-4" max="40" step="0.01" value="${d.wordSpacing||0}" data-k="wordSpacing"/><span data-v="wordSpacing">${d.wordSpacing||0}</span></label>
         <span class="ot-sep"></span>
         <button class="ot-btn" data-action="copy">Copy</button>
         <button class="ot-btn" data-action="cut">Cut</button>
@@ -6132,14 +6274,17 @@ const app=(()=>{
         const val=el.type==='number'||el.type==='range'?Number(el.value):el.value;
         const valueLabel=bar.querySelector(`[data-v="${k}"]`);
         if(valueLabel)valueLabel.textContent=(k==='opacity'||k==='quality')?Math.round(Number(val)*100)+'%':String(val);
-        if(target.type===OT.TEXT&&target.id===_editingTextId&&['fontFamily','fontSize','letterSpacing','wordSpacing','lineHeight'].includes(k)&&(_selectionInsideEditor()||_restoreEditorSelection())){
+        if(target.type===OT.TEXT&&target.id===_editingTextId&&['fontFamily','fontSize','letterSpacing','lineHeight'].includes(k)&&(_selectionInsideEditor()||_restoreEditorSelection())){
           const base=Number(target.data?.fontSize)||Number(val)||12;
           let style=k==='fontFamily'?{fontFamily:val}:k==='fontSize'?{fontSize:(Number(val)/base)+'em'}:{[k]:k==='lineHeight'?String(val):Number(val)+'px'};
           _applyEditorInlineStyle(style);
           return;
         }
         if(el.dataset.prop)target[k]=val;
-        else target.data[k]=val;
+        else{
+          target.data[k]=val;
+          if(target.type===OT.TEXT&&k==='wordSpacing')delete target.data._lineWordSpacings;
+        }
         target.dirty=true;
         _syncActiveTextEditorStyles(target);
         _fullRedraw(target.pageIndex,{toolbar:false});
@@ -6582,13 +6727,29 @@ const app=(()=>{
     const lines=String(text||'').split('\n');
     return lines.map(line=>`<div>${_escapeHtml(line)||'<br>'}</div>`).join('');
   }
+  function _mappedLineSpacingHtml(html,d){
+    if(!Array.isArray(d?._lineWordSpacings)||!d._lineWordSpacings.length)return html;
+    const tpl=document.createElement('template');tpl.innerHTML=html;
+    const blocks=[...tpl.content.childNodes].filter(node=>node.nodeType===1&&['DIV','P'].includes(node.tagName));
+    if(!blocks.length)return html;
+    blocks.forEach((block,i)=>block.style.wordSpacing=_cssPx(_lineWordSpacing(d,i)/RENDER_SCALE));
+    return tpl.innerHTML;
+  }
+  function _withoutMappedLineSpacingHtml(html,d){
+    if(!Array.isArray(d?._lineWordSpacings)||!d._lineWordSpacings.length)return html;
+    const tpl=document.createElement('template');tpl.innerHTML=html;
+    [...tpl.content.childNodes]
+      .filter(node=>node.nodeType===1&&['DIV','P'].includes(node.tagName))
+      .forEach(block=>block.style.removeProperty('word-spacing'));
+    return tpl.innerHTML;
+  }
   function _editorHtmlForObj(obj){
     const d=obj.data||{};
-    if(d.html)return d.html;
+    if(d.html)return _mappedLineSpacingHtml(d.html,d);
     const lines=String(d.content||'').split('\n');
     const aligns=Array.isArray(d._lineAligns)?d._lineAligns:[];
     if(lines.length>1){
-      return lines.map((line,i)=>`<div style="text-align:${aligns[i]||d.align||'left'}">${_escapeHtml(line)||'<br>'}</div>`).join('');
+      return lines.map((line,i)=>`<div style="text-align:${aligns[i]||d.align||'left'};word-spacing:${_lineWordSpacing(d,i)/RENDER_SCALE}px">${_escapeHtml(line)||'<br>'}</div>`).join('');
     }
     return _plainToEditorHtml(d.content||'');
   }
@@ -6596,11 +6757,11 @@ const app=(()=>{
     return _cleanTextHtml(html);
   }
   function _renderTextObjectHtml(d){
-    if(d.html)return d.html;
+    if(d.html)return _mappedLineSpacingHtml(d.html,d);
     const lines=String(d.content||'').split('\n');
     const aligns=Array.isArray(d._lineAligns)?d._lineAligns:[];
     if(lines.length>1&&aligns.length){
-      return lines.map((line,i)=>`<div style="text-align:${aligns[i]||d.align||'left'}">${_escapeHtml(line)||'<br>'}</div>`).join('');
+      return lines.map((line,i)=>`<div style="text-align:${aligns[i]||d.align||'left'};word-spacing:${_lineWordSpacing(d,i)/RENDER_SCALE}px">${_escapeHtml(line)||'<br>'}</div>`).join('');
     }
     return _escapeHtml(d.content||'').replace(/\n/g,'<br>');
   }
@@ -6657,7 +6818,7 @@ const app=(()=>{
     ta.style.textAlign   =obj.data.align||'left';
     ta.style.lineHeight  =String(obj.data.lineHeight||1.2);
     ta.style.letterSpacing=(obj.data.letterSpacing||0)+'px';
-    ta.style.wordSpacing=(obj.data.wordSpacing||0)+'px';
+    ta.style.wordSpacing=_cssPx((obj.data.wordSpacing||0)*sf);
     ta.style.background  =obj.data.backgroundColor&&obj.data.backgroundColor!=='transparent'?obj.data.backgroundColor:'transparent'; // default see-through
     ta.style.border      ='1.5px solid var(--accent)';
     ta.style.boxShadow   ='none';
@@ -6780,7 +6941,10 @@ const app=(()=>{
     ta.style.textAlign=d.align||'left';
     ta.style.lineHeight=String(d.lineHeight||1.2);
     ta.style.letterSpacing=(d.letterSpacing||0)+'px';
-    ta.style.wordSpacing=(d.wordSpacing||0)+'px';
+    ta.style.wordSpacing=_cssPx((d.wordSpacing||0)*sf);
+    if(!Array.isArray(d._lineWordSpacings)){
+      ta.querySelectorAll(':scope > div,:scope > p').forEach(line=>line.style.removeProperty('word-spacing'));
+    }
     ta.style.background=d.backgroundColor&&d.backgroundColor!=='transparent'?d.backgroundColor:'transparent';
     if(document.activeElement!==ta || _inUndoRedo){
       const expectedHtml=_editorHtmlForObj(obj);
@@ -6795,7 +6959,7 @@ const app=(()=>{
     if(!_textEditorEl||!_editingTextId)return;
     const obj=sg.objects.get(_editingTextId);
     const content=_textEditorEl.value;
-    const html=_normalizeEditorHtmlForData(_textEditorEl.innerHTML||'');
+    const html=_normalizeEditorHtmlForData(_withoutMappedLineSpacingHtml(_textEditorEl.innerHTML||'',obj?.data));
     const pi=obj?obj.pageIndex:activePage;
     const before=_textEditStartSnap;
     const editorEl=_textEditorEl;
@@ -7262,7 +7426,7 @@ const app=(()=>{
     <div class="pr"><span class="pl">Align</span><div class="par" style="flex:1">${['left','center','right'].map(a=>`<button class="pab${d.align===a?' active':''}" onclick="app.setTextAlign('${a}')">${a[0].toUpperCase()+a.slice(1)}</button>`).join('')}</div></div>
     <div class="pr"><span class="pl">Line H</span><input class="pi" type="range" id="p-lh" min="0.8" max="3" step="0.05" value="${d.lineHeight||1.2}" style="flex:1"/><span style="font-size:11px;color:var(--text-secondary);width:28px" id="p-lh-v">${d.lineHeight||1.2}</span></div>
     <div class="pr"><span class="pl">Char Sp</span><input class="pi" type="range" id="p-ls" min="-2" max="20" step="0.25" value="${d.letterSpacing||0}" style="flex:1"/><span style="font-size:11px;color:var(--text-secondary);width:28px" id="p-ls-v">${d.letterSpacing||0}</span></div>
-    <div class="pr"><span class="pl">Word Sp</span><input class="pi" type="range" id="p-ws" min="-4" max="40" step="0.5" value="${d.wordSpacing||0}" style="flex:1"/><span style="font-size:11px;color:var(--text-secondary);width:28px" id="p-ws-v">${d.wordSpacing||0}</span></div>
+    <div class="pr"><span class="pl">Word Sp</span><input class="pi" type="range" id="p-ws" min="-4" max="40" step="0.01" value="${d.wordSpacing||0}" style="flex:1"/><span style="font-size:11px;color:var(--text-secondary);width:28px" id="p-ws-v">${d.wordSpacing||0}</span></div>
     </div>`;};
 
   const _iP=obj=>{const d=obj.data;return`<div class="ps"><div class="ps-title">Image Source</div>
@@ -7308,7 +7472,7 @@ const app=(()=>{
         const cur=sg.objects.get(obj.id);if(!cur)return;
         const val=xf?xf(el.value):el.value;
         const dirty=cur.isOriginal?{dirty:true}:{};
-        const extraData=id==='p-fn'?{_fontModified:true}:{};
+        const extraData=id==='p-fn'?{_fontModified:true}:id==='p-ws'?{_lineWordSpacings:null}:{};
         if(dkey)sg.updateObject(cur.id,{...dirty,data:{[dkey]:val,...extraData}},false);
         else sg.updateObject(cur.id,{...dirty,[prop]:val},false);
         const sp=document.getElementById(id+'-v');

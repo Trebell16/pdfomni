@@ -1,10 +1,11 @@
-export default function ToolSeoSection({ tool, seo }) {
+export default function ToolSeoSection({ tool, seo, headingLevel = 2 }) {
   const mainTerm = tool.name
+  const Heading = headingLevel === 1 ? 'h1' : 'h2'
 
   return (
     <section className="tool-seo-section" aria-labelledby="tool-seo-heading">
       <div className="tool-seo-kicker">Private PDF workflow</div>
-      <h2 id="tool-seo-heading">{seo.h1}</h2>
+      <Heading id="tool-seo-heading">{seo.h1}</Heading>
       <p className="tool-seo-lead">{seo.intro}</p>
 
       <div className="tool-seo-grid tool-seo-steps" aria-label={`How to use ${tool.name}`}>

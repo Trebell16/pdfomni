@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Navigate, Routes, Route, useLocation } from 'react-router-dom'
 import Layout from './components/Layout/Layout'
 import Home from './pages/Home'
 
@@ -16,40 +16,6 @@ function RouteLoader() {
     <div style={{ minHeight: '50vh', display: 'grid', placeItems: 'center' }}>
       <div className="spinner" aria-label="Loading page" />
     </div>
-  )
-}
-
-function EditPdfWrapper() {
-  const isIOSWebKit = /iP(?:ad|hone|od)/.test(navigator.userAgent)
-    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-
-  useEffect(() => {
-    if (isIOSWebKit) {
-      window.location.replace('/editpdf.html?standalone=1')
-    }
-  }, [isIOSWebKit])
-
-  if (isIOSWebKit) {
-    return <RouteLoader />
-  }
-
-  return (
-    <iframe
-      src="/editpdf.html"
-      style={{
-        width: '100vw',
-        height: '100vh',
-        border: 'none',
-        display: 'block',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        zIndex: 9999,
-        margin: 0,
-        padding: 0,
-      }}
-      title="PDF Editor"
-    />
   )
 }
 
@@ -112,9 +78,9 @@ export default function App() {
       <Suspense fallback={<RouteLoader />}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/tool/edit" element={<EditPdfWrapper />} />
-          <Route path="/tool/draw" element={<EditPdfWrapper />} />
-          <Route path="/tool/image-edit" element={<EditPdfWrapper />} />
+          <Route path="/tool/edit" element={<Navigate to="/edit-pdf" replace />} />
+          <Route path="/tool/draw" element={<Navigate to="/edit-pdf" replace />} />
+          <Route path="/tool/image-edit" element={<Navigate to="/edit-pdf" replace />} />
           <Route path="/tool/:toolId" element={<ToolPage />} />
           <Route path="/merge" element={<ToolPage forcedToolId="merge" />} />
           <Route path="/split" element={<ToolPage forcedToolId="split" />} />
@@ -128,7 +94,7 @@ export default function App() {
           <Route path="/html-to-pdf" element={<ToolPage forcedToolId="html-to-pdf" />} />
           <Route path="/pdf-to-image" element={<ToolPage forcedToolId="pdf-to-image" />} />
           <Route path="/pdf-to-text" element={<ToolPage forcedToolId="pdf-to-text" />} />
-          <Route path="/edit-pdf" element={<EditPdfWrapper />} />
+          <Route path="/edit-pdf" element={<ToolPage forcedToolId="edit" />} />
           <Route path="/watermark" element={<ToolPage forcedToolId="watermark" />} />
           <Route path="/redact" element={<ToolPage forcedToolId="redact" />} />
           <Route path="/crop" element={<ToolPage forcedToolId="crop" />} />

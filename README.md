@@ -147,7 +147,7 @@ editpdf.html            Standalone PDF editor
 
 ## 📦 Builds
 
-### Normal Build
+### Full Build
 ```bash
 npm run build
 ```
@@ -156,13 +156,18 @@ This command:
 2. Builds the compressor into `dist/compress/app/`.
 3. Prerenders and verifies all public routes.
 4. Generates the Cloudflare deployment manifest.
-5. Creates `dist.zip`.
+5. Repeats the build into `obfuscated_dist/` and obfuscates the shipped first-party code.
+
+To create only the normal `dist/` output, run:
+```bash
+npm run build:standard
+```
 
 ### Protected Build
 ```bash
 npm run build:protected
 ```
-This creates a separate deployment in `obfuscated_dist/`, obfuscates first-party JavaScript, prerenders the routes, verifies them, and creates `obfuscated_dist.zip`. Note: The protected build is a copying deterrent, not a security boundary.
+This creates a separate deployment in `obfuscated_dist/`, obfuscates the explicitly classified first-party application and worker code, syntax-checks every transformed file, and then prerenders and verifies the routes. Its report lists protected, vendor/runtime, and unclassified JavaScript so newly shipped entry points cannot be silently missed. The protected build is a copying deterrent, not a security boundary.
 
 ---
 

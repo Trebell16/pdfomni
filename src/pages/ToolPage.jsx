@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react'
 import { useParams, Link, Navigate } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { getToolById } from '../config/tools'
@@ -57,7 +58,106 @@ function CompressIframeWrapper() {
   )
 }
 
+function EditPdfIframe() {
+  const frameRef = useRef(null)
+  const [workspaceOpen, setWorkspaceOpen] = useState(false)
+  const [landingTab, setLandingTab] = useState('pages')
+  const isIOSWebKit = /iP(?:ad|hone|od)/.test(navigator.userAgent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+
+  useEffect(() => {
+    if (isIOSWebKit) window.location.replace('/editpdf.html?standalone=1')
+  }, [isIOSWebKit])
+
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.origin !== window.location.origin || event.source !== frameRef.current?.contentWindow) return
+      if (event.data?.type === 'pdfomni-editor-workspace') {
+        setWorkspaceOpen(true)
+        return
+      }
+      if (event.data?.type === 'pdfomni-theme' && ['light', 'dark'].includes(event.data.theme)) {
+        document.documentElement.dataset.theme = event.data.theme
+        try {
+          localStorage.setItem('pdfomni_theme', event.data.theme)
+        } catch {
+          // Ignore private browsing storage failures.
+        }
+      }
+    }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [])
+
+  useEffect(() => {
+    if (!workspaceOpen) return undefined
+    const previousHtmlOverflow = document.documentElement.style.overflow
+    const previousBodyOverflow = document.body.style.overflow
+    document.documentElement.style.overflow = 'hidden'
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.documentElement.style.overflow = previousHtmlOverflow
+      document.body.style.overflow = previousBodyOverflow
+    }
+  }, [workspaceOpen])
+
+  if (isIOSWebKit) {
+    return <div className="edit-pdf-frame-loading"><div className="spinner" aria-label="Loading PDF editor" /></div>
+  }
+
+  return (
+    <div className={`edit-pdf-frame-shell${workspaceOpen ? ' workspace-open' : ''}`}>
+      <iframe
+        ref={frameRef}
+        src="/editpdf.html?embedded=1"
+        className="edit-pdf-frame"
+        title="PDF Editor"
+        onLoad={(event) => {
+          const theme = document.documentElement.dataset.theme || 'light'
+          event.currentTarget.contentWindow?.postMessage(
+            { type: 'pdfomni-theme', theme },
+            window.location.origin,
+          )
+        }}
+      />
+      {!workspaceOpen && (
+        <aside className="edit-pdf-landing-sidebar" aria-label="PDF editor navigation">
+          <div className="edit-pdf-landing-sidebar-top">
+            <Link to="/" className="edit-pdf-landing-brand" aria-label="PDFOmni home">
+              <span className="edit-pdf-landing-mark">P</span>
+              <span>PDFOmni</span>
+            </Link>
+            <Link to="/" className="edit-pdf-landing-all-tools">‹ All Tools</Link>
+          </div>
+          <div className="edit-pdf-landing-tabs" role="tablist" aria-label="Editor sidebar">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={landingTab === 'pages'}
+              className={landingTab === 'pages' ? 'active' : ''}
+              onClick={() => setLandingTab('pages')}
+            >
+              Pages
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={landingTab === 'layers'}
+              className={landingTab === 'layers' ? 'active' : ''}
+              onClick={() => setLandingTab('layers')}
+            >
+              Layers
+            </button>
+          </div>
+          <div className="edit-pdf-landing-sidebar-body" role="tabpanel" aria-label={landingTab} />
+        </aside>
+      )}
+    </div>
+  )
+}
+
 const toolComponents = {
+  'edit': EditPdfIframe,
   'merge': MergeTool,
   'split': SplitTool,
   'reorder': ReorderTool,
@@ -136,28 +236,44 @@ export default function ToolPage({ forcedToolId }) {
     })),
   }
 
+  const seoMetadata = (
+    <Seo
+      title={title}
+      description={description}
+      canonicalPath={canonicalPath}
+      structuredData={{
+        '@context': 'https://schema.org',
+        '@graph': [
+          {
+            '@type': 'SoftwareApplication',
+            name: `PDFOmni ${tool.name}`,
+            applicationCategory: 'BusinessApplication',
+            operatingSystem: 'Web Browser',
+            description,
+            url: `https://pdfomni.com${canonicalPath}`,
+          },
+          howToSchema,
+          faqSchema,
+        ],
+      }}
+    />
+  )
+
+  if (toolId === 'edit') {
+    return (
+      <div className="tool-page edit-pdf-page" id="tool-page-edit">
+        {seoMetadata}
+        <ToolComponent toolId={toolId} tool={tool} />
+        <div className="edit-pdf-seo-flow">
+          <ToolSeoSection tool={tool} seo={seo} headingLevel={1} />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="tool-page" id={`tool-page-${toolId}`}>
-      <Seo
-        title={title}
-        description={description}
-        canonicalPath={canonicalPath}
-        structuredData={{
-          '@context': 'https://schema.org',
-          '@graph': [
-            {
-              '@type': 'SoftwareApplication',
-              name: `PDFOmni ${tool.name}`,
-              applicationCategory: 'BusinessApplication',
-              operatingSystem: 'Web Browser',
-              description,
-              url: `https://pdfomni.com${canonicalPath}`,
-            },
-            howToSchema,
-            faqSchema,
-          ],
-        }}
-      />
+      {seoMetadata}
       <div className={wideLayoutTools.has(toolId) ? 'container-wide' : 'container'}>
         <Link to="/" className="btn btn-ghost" style={{ marginBottom: 'var(--space-6)' }}>
           <ArrowLeft size={18} />
